@@ -1,0 +1,2030 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>IR SkillUp | Admin CMS</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <!-- Firebase for content management -->
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
+
+  <style>
+    :root {
+      --primary: #4f46e5;
+      --primary-hover: #4338ca;
+      --primary-light: #818cf8;
+      --primary-glow: rgba(79,70,229,0.18);
+      --danger: #dc2626;
+      --danger-hover: #b91c1c;
+      --success: #16a34a;
+      --success-hover: #15803d;
+      --warning: #d97706;
+      --warning-hover: #b45309;
+      --info: #0284c7;
+      --dark: #0f172a;
+      --darker: #020617;
+      --sidebar-w: 250px;
+      --header-h: 64px;
+      --radius: 14px;
+      --shadow: 0 4px 20px rgba(0,0,0,0.07);
+      --transition: all 0.2s cubic-bezier(0.4,0,0.2,1);
+    }
+
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: #f1f5f9;
+      color: #334155;
+      min-height: 100vh;
+    }
+
+    body.dark {
+      background: var(--darker);
+      color: #e2e8f0;
+    }
+
+    /* ── LAYOUT ── */
+    #app { display:flex; min-height:100vh; }
+
+    /* ── SIDEBAR ── */
+    #sidebar {
+      width: var(--sidebar-w);
+      min-height: 100vh;
+      background: #fff;
+      border-right: 1px solid #e2e8f0;
+      display: flex;
+      flex-direction: column;
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+      z-index: 100;
+      transition: transform 0.3s ease;
+    }
+
+    body.dark #sidebar {
+      background: #1e293b;
+      border-color: #334155;
+    }
+
+    #sidebar.collapsed { transform: translateX(-100%); }
+
+    .sidebar-logo {
+      padding: 20px 18px;
+      border-bottom: 1px solid #e2e8f0;
+      display: flex; align-items: center; gap: 10px;
+    }
+    body.dark .sidebar-logo { border-color: #334155; }
+
+    .sidebar-logo-icon {
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, var(--primary), #8b5cf6);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-size: 16px;
+    }
+    .sidebar-logo-text { font-size: 1.05rem; font-weight: 800; letter-spacing: -0.02em;
+      background: linear-gradient(135deg, var(--primary), #8b5cf6);
+      -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+    .sidebar-section { padding: 8px 10px 4px; font-size: 0.68rem; font-weight: 700;
+      color: #94a3b8; text-transform: uppercase; letter-spacing: 0.08em; }
+
+    .sidebar-nav { flex: 1; overflow-y: auto; padding: 8px; }
+
+    .nav-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 12px; border-radius: 10px;
+      cursor: pointer; font-size: 0.875rem; font-weight: 600;
+      color: #64748b; transition: var(--transition);
+      margin-bottom: 2px;
+    }
+    .nav-item:hover { background: #f1f5f9; color: #334155; }
+    body.dark .nav-item:hover { background: #334155; color: #e2e8f0; }
+    .nav-item.active { background: var(--primary-glow); color: var(--primary); }
+    body.dark .nav-item.active { background: rgba(79,70,229,0.2); color: var(--primary-light); }
+    .nav-item i { width: 18px; text-align: center; font-size: 0.95rem; }
+
+    .sidebar-footer {
+      padding: 12px;
+      border-top: 1px solid #e2e8f0;
+    }
+    body.dark .sidebar-footer { border-color: #334155; }
+
+    /* ── MAIN CONTENT ── */
+    #main {
+      margin-left: var(--sidebar-w);
+      flex: 1;
+      display: flex; flex-direction: column;
+      min-height: 100vh;
+      transition: margin-left 0.3s ease;
+    }
+    #main.full { margin-left: 0; }
+
+    /* ── TOP BAR ── */
+    #topbar {
+      height: var(--header-h);
+      background: #fff;
+      border-bottom: 1px solid #e2e8f0;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 24px;
+      position: sticky; top: 0; z-index: 50;
+      gap: 16px;
+    }
+    body.dark #topbar { background: #1e293b; border-color: #334155; }
+
+    .topbar-left { display: flex; align-items: center; gap: 12px; }
+    .topbar-right { display: flex; align-items: center; gap: 10px; }
+
+    .topbar-title { font-size: 1.1rem; font-weight: 700; color: #1e293b; }
+    body.dark .topbar-title { color: #f1f5f9; }
+    .topbar-sub { font-size: 0.78rem; color: #94a3b8; margin-top: 1px; }
+
+    #menuToggle {
+      width: 36px; height: 36px; border-radius: 8px;
+      border: none; background: #f1f5f9; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      color: #64748b; transition: var(--transition);
+    }
+    body.dark #menuToggle { background: #334155; color: #94a3b8; }
+    #menuToggle:hover { background: #e2e8f0; }
+
+    .icon-circle {
+      width: 36px; height: 36px; border-radius: 50%;
+      border: none; background: #f1f5f9; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      color: #64748b; transition: var(--transition); font-size: 0.9rem;
+    }
+    body.dark .icon-circle { background: #334155; color: #94a3b8; }
+    .icon-circle:hover { background: var(--primary); color: #fff; }
+
+    .user-pill {
+      display: flex; align-items: center; gap: 8px;
+      padding: 5px 12px 5px 5px;
+      background: #f1f5f9; border-radius: 50px;
+      font-size: 0.825rem; font-weight: 600; color: #334155;
+    }
+    body.dark .user-pill { background: #334155; color: #e2e8f0; }
+    .user-avatar {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), #8b5cf6);
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-size: 0.75rem; font-weight: 700;
+    }
+
+    /* ── CONTENT AREA ── */
+    #content { flex: 1; padding: 24px; overflow-x: hidden; }
+
+    /* ── PANELS ── */
+    .panel { display: none; animation: fadeInUp 0.35s ease-out; }
+    .panel.active { display: block; }
+
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── CARDS ── */
+    .card {
+      background: #fff; border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      border: 1px solid #e2e8f0;
+      transition: var(--transition);
+    }
+    body.dark .card { background: #1e293b; border-color: #334155; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+
+    .card-hover:hover { box-shadow: 0 8px 28px rgba(0,0,0,0.1); transform: translateY(-2px); }
+
+    .stat-card {
+      padding: 20px;
+      display: flex; align-items: center; gap: 16px;
+    }
+    .stat-icon {
+      width: 52px; height: 52px; border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.3rem;
+    }
+    .stat-label { font-size: 0.8rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; }
+    .stat-value { font-size: 1.75rem; font-weight: 800; color: #1e293b; line-height: 1.1; }
+    body.dark .stat-value { color: #f1f5f9; }
+
+    /* ── BUTTONS ── */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+      padding: 9px 18px; border-radius: 8px;
+      font-family: inherit; font-size: 0.85rem; font-weight: 600;
+      border: none; cursor: pointer; transition: var(--transition);
+      white-space: nowrap;
+    }
+    .btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
+
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-hover); box-shadow: 0 2px 10px var(--primary-glow); }
+    .btn-danger  { background: var(--danger); color: #fff; }
+    .btn-danger:hover  { background: var(--danger-hover); }
+    .btn-success { background: var(--success); color: #fff; }
+    .btn-success:hover { background: var(--success-hover); }
+    .btn-warning { background: var(--warning); color: #fff; }
+    .btn-warning:hover { background: var(--warning-hover); }
+    .btn-ghost { background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; }
+    body.dark .btn-ghost { background: #334155; color: #94a3b8; border-color: #475569; }
+    .btn-ghost:hover { background: #e2e8f0; color: #334155; }
+    body.dark .btn-ghost:hover { background: #475569; color: #e2e8f0; }
+    .btn-sm { padding: 6px 12px; font-size: 0.8rem; }
+
+    /* ── FORMS ── */
+    .form-group { margin-bottom: 16px; }
+    .form-label { display: block; margin-bottom: 6px; font-size: 0.82rem; font-weight: 600; color: #475569; }
+    body.dark .form-label { color: #94a3b8; }
+    .form-control {
+      width: 100%; padding: 9px 13px;
+      border: 1.5px solid #e2e8f0; border-radius: 8px;
+      font-family: inherit; font-size: 0.875rem; color: #334155;
+      background: #fff; transition: var(--transition);
+    }
+    body.dark .form-control { background: #0f172a; border-color: #334155; color: #e2e8f0; }
+    .form-control:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-glow); }
+    textarea.form-control { resize: vertical; }
+
+    /* ── TABLES ── */
+    .table-wrap { overflow-x: auto; border-radius: var(--radius); }
+    table { width: 100%; border-collapse: separate; border-spacing: 0; }
+    thead tr { background: #f8fafc; }
+    body.dark thead tr { background: #0f172a; }
+    th {
+      padding: 11px 14px; text-align: left;
+      font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em;
+      color: #64748b; text-transform: uppercase;
+      position: sticky; top: 0; z-index: 1; background: inherit;
+      border-bottom: 2px solid #e2e8f0;
+    }
+    body.dark th { color: #94a3b8; border-color: #334155; }
+    td {
+      padding: 11px 14px; font-size: 0.85rem; color: #475569;
+      border-bottom: 1px solid #f1f5f9;
+    }
+    body.dark td { color: #94a3b8; border-color: #1e293b; }
+    tr:hover td { background: #f8fafc; }
+    body.dark tr:hover td { background: rgba(255,255,255,0.03); }
+    tr:last-child td { border-bottom: none; }
+
+    /* ── BADGES ── */
+    .badge {
+      display: inline-flex; align-items: center;
+      padding: 3px 9px; border-radius: 999px;
+      font-size: 0.7rem; font-weight: 700; text-transform: capitalize;
+    }
+    .badge-success { background: #dcfce7; color: #166534; border: 1px solid #a7f3d0; }
+    .badge-warning { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+    .badge-danger  { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+    .badge-info    { background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
+    .badge-gray    { background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; }
+
+    /* ── PAGINATION ── */
+    .pagination { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-top: 16px; }
+    .page-btn {
+      padding: 6px 11px; border-radius: 7px; border: 1px solid #e2e8f0;
+      background: #f8fafc; color: #64748b; font-size: 0.8rem; font-weight: 600;
+      cursor: pointer; transition: var(--transition);
+    }
+    body.dark .page-btn { background: #1e293b; border-color: #334155; color: #94a3b8; }
+    .page-btn:hover:not(:disabled) { background: #e2e8f0; color: #334155; }
+    .page-btn.active-page { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .page-numbers { display: flex; flex-wrap: wrap; gap: 5px; }
+
+    /* ── MODALS ── */
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.55); backdrop-filter: blur(6px);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 1000; opacity: 0; pointer-events: none; transition: opacity 0.25s ease;
+    }
+    .modal-overlay.active { opacity: 1; pointer-events: auto; }
+
+    .modal-box {
+      background: #fff; border-radius: 18px;
+      width: 90%; max-width: 560px; max-height: 90vh; overflow-y: auto;
+      transform: scale(0.95) translateY(20px);
+      transition: transform 0.25s ease;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.2);
+    }
+    body.dark .modal-box { background: #1e293b; }
+    .modal-overlay.active .modal-box { transform: scale(1) translateY(0); }
+
+    .modal-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 18px 22px; border-bottom: 1px solid #e2e8f0;
+    }
+    body.dark .modal-header { border-color: #334155; }
+    .modal-header h3 { font-size: 1.1rem; font-weight: 700; }
+    .modal-body { padding: 22px; }
+    .modal-footer {
+      display: flex; justify-content: flex-end; gap: 10px;
+      padding: 14px 22px; border-top: 1px solid #e2e8f0;
+      background: #f8fafc;
+    }
+    body.dark .modal-footer { background: #0f172a; border-color: #334155; }
+    .modal-close { background: none; border: none; cursor: pointer; color: #94a3b8; font-size: 1.1rem; padding: 4px; border-radius: 6px; }
+    .modal-close:hover { color: #334155; background: #f1f5f9; }
+    body.dark .modal-close:hover { color: #e2e8f0; background: #334155; }
+
+    /* Alert/confirm modal */
+    .alert-box {
+      background: #fff; border-radius: 18px;
+      width: 90%; max-width: 400px; padding: 28px 24px; text-align: center;
+      transform: scale(0.95); transition: transform 0.25s ease;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.2);
+    }
+    body.dark .alert-box { background: #1e293b; }
+    .modal-overlay.active .alert-box { transform: scale(1); }
+
+    /* Loading spinner overlay */
+    #loadingOverlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.4); backdrop-filter: blur(4px);
+      z-index: 2000; display: flex; align-items: center; justify-content: center;
+      opacity: 0; pointer-events: none; transition: opacity 0.2s;
+    }
+    #loadingOverlay.active { opacity: 1; pointer-events: auto; }
+    .spinner {
+      width: 48px; height: 48px; border-radius: 50%;
+      border: 4px solid rgba(255,255,255,0.2);
+      border-top-color: #fff;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Toast notification */
+    #toast {
+      position: fixed; bottom: 24px; right: 24px; z-index: 3000;
+      min-width: 280px; max-width: 380px;
+      background: #1e293b; color: #f1f5f9;
+      border-radius: 12px; padding: 14px 18px;
+      display: flex; align-items: center; gap: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+      transform: translateY(80px); opacity: 0;
+      transition: all 0.35s cubic-bezier(0.4,0,0.2,1);
+    }
+    #toast.show { transform: translateY(0); opacity: 1; }
+    #toast.toast-success { background: #166534; }
+    #toast.toast-error   { background: #991b1b; }
+    #toast.toast-info    { background: #1e40af; }
+    .toast-icon { font-size: 1.1rem; }
+    .toast-msg  { flex: 1; font-size: 0.875rem; font-weight: 500; }
+
+    /* ── SEARCH BAR ── */
+    .search-wrap { position: relative; }
+    .search-wrap input { padding-left: 36px; }
+    .search-wrap .search-icon {
+      position: absolute; left: 11px; top: 50%; transform: translateY(-50%);
+      color: #94a3b8; pointer-events: none; font-size: 0.85rem;
+    }
+
+    /* ── SECTION TITLE ── */
+    .section-title { font-size: 1.35rem; font-weight: 800; color: #1e293b; }
+    body.dark .section-title { color: #f1f5f9; }
+    .section-sub { font-size: 0.82rem; color: #94a3b8; margin-top: 2px; }
+
+    /* ── LIST ITEM (Firebase content) ── */
+    .list-item {
+      background: #f8fafc; border-radius: 12px; padding: 16px;
+      border: 1.5px solid transparent; transition: var(--transition);
+      margin-bottom: 10px;
+    }
+    body.dark .list-item { background: #0f172a; }
+    .list-item:hover { border-color: var(--primary-light); transform: translateX(3px); }
+    .list-item.selected { background: rgba(79,70,229,0.06); border-color: var(--primary); border-left-width: 4px; }
+
+    /* ── ICON BTN ── */
+    .icon-btn {
+      background: none; border: none; cursor: pointer;
+      padding: 6px; border-radius: 7px; transition: var(--transition);
+      font-size: 0.9rem; color: #94a3b8;
+    }
+    .icon-btn:hover { background: #f1f5f9; color: #334155; }
+    .icon-btn.danger:hover { background: #fee2e2; color: var(--danger); }
+    .icon-btn.edit:hover { background: #dbeafe; color: var(--info); }
+    body.dark .icon-btn:hover { background: #334155; color: #e2e8f0; }
+
+    /* ── CHART CONTAINER ── */
+    .chart-box { position: relative; height: 240px; width: 100%; }
+
+    /* ── VIEW DATA ── */
+    .view-row { display: flex; align-items: flex-start; padding: 8px 0; border-bottom: 1px solid #f1f5f9; font-size: 0.875rem; }
+    body.dark .view-row { border-color: #334155; }
+    .view-label { min-width: 140px; color: #94a3b8; font-weight: 600; }
+    .view-value { flex: 1; color: #334155; word-break: break-all; }
+    body.dark .view-value { color: #e2e8f0; }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 768px) {
+      #sidebar { transform: translateX(-100%); }
+      #sidebar.open { transform: translateX(0); }
+      #main { margin-left: 0; }
+      .stat-card { padding: 14px; }
+    }
+
+    /* ── SCROLLBAR ── */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
+    body.dark ::-webkit-scrollbar-thumb { background: #334155; }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <!-- SIDEBAR -->
+  <nav id="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-icon"><i class="fas fa-crown"></i></div>
+      <span class="sidebar-logo-text">IR SkillUp</span>
+    </div>
+    <div class="sidebar-nav" id="sidebarNav">
+      <div class="sidebar-section">Overview</div>
+      <div class="nav-item active" data-panel="dashboardPanel"><i class="fas fa-chart-pie"></i> Dashboard</div>
+
+      <div class="sidebar-section" style="margin-top:8px;">Database</div>
+      <div class="nav-item" data-panel="studentsPanel"><i class="fas fa-user-graduate"></i> Students</div>
+      <div class="nav-item" data-panel="batchesPanel"><i class="fas fa-layer-group"></i> Batches</div>
+      <div class="nav-item" data-panel="adminsPanel"><i class="fas fa-user-shield"></i> Admins</div>
+      <div class="nav-item" data-panel="attendancePanel"><i class="fas fa-calendar-check"></i> Attendance</div>
+      <div class="nav-item" data-panel="certificatesPanel"><i class="fas fa-certificate"></i> Certificates</div>
+      <div class="nav-item" data-panel="paymentsPanel"><i class="fas fa-money-bill-wave"></i> Payments</div>
+      <div class="nav-item" data-panel="rolesPanel"><i class="fas fa-shield-alt"></i> Roles</div>
+      <div class="nav-item" data-panel="taskPanel"><i class="fas fa-tasks"></i> Task Submissions</div>
+
+      <div class="sidebar-section" style="margin-top:8px;">Content (Firebase)</div>
+      <div class="nav-item" data-panel="notificationsPanel"><i class="fas fa-bell"></i> Notifications</div>
+      <div class="nav-item" data-panel="carouselPanel"><i class="fas fa-images"></i> Carousel</div>
+      <div class="nav-item" data-panel="announcementsPanel"><i class="fas fa-bullhorn"></i> Announcements</div>
+      <div class="nav-item" data-panel="internshipsPanel"><i class="fas fa-briefcase"></i> Internships</div>
+      <div class="nav-item" data-panel="coursesPanel"><i class="fas fa-graduation-cap"></i> Courses</div>
+      <div class="nav-item" data-panel="feedbackPanel"><i class="fas fa-star"></i> Feedback</div>
+      <div class="nav-item" data-panel="reportsPanel"><i class="fas fa-flag"></i> Reports</div>
+
+      <div class="sidebar-section" style="margin-top:8px;">Tools</div>
+      <div class="nav-item" data-panel="classLinksPanel"><i class="fas fa-link"></i> Class Links</div>
+      <div class="nav-item" data-panel="paymentMgmtPanel"><i class="fas fa-credit-card"></i> Payment Update</div>
+      <div class="nav-item" data-panel="settingsPanel"><i class="fas fa-cog"></i> Settings</div>
+    </div>
+    <div class="sidebar-footer">
+      <div class="nav-item" id="darkToggleBtn">
+        <i class="fas fa-moon" id="darkIcon"></i> <span id="darkLabel">Dark Mode</span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- MAIN -->
+  <div id="main">
+    <!-- TOPBAR -->
+    <header id="topbar">
+      <div class="topbar-left">
+        <button id="menuToggle"><i class="fas fa-bars"></i></button>
+        <div>
+          <div class="topbar-title" id="topbarTitle">Dashboard</div>
+          <div class="topbar-sub" id="topbarSub">IR SkillUp Admin Panel</div>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <button class="icon-circle" title="Refresh" id="refreshBtn"><i class="fas fa-sync-alt"></i></button>
+        <div class="user-pill" id="userPill">
+          <div class="user-avatar" id="userAvatar">A</div>
+          <span id="userLabel">Admin</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- CONTENT PANELS -->
+    <main id="content">
+
+      <!-- ═══════════════════ DASHBOARD ═══════════════════ -->
+      <div class="panel active" id="dashboardPanel">
+        <div class="flex justify-between items-start mb-6 flex-wrap gap-4">
+          <div>
+            <div class="section-title">Dashboard Overview</div>
+            <div class="section-sub">Live stats from your Supabase database</div>
+          </div>
+          <button class="btn btn-primary btn-sm" id="refreshVizBtn"><i class="fas fa-sync-alt"></i> Refresh</button>
+        </div>
+        <div id="statsGrid" class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 mb-6"></div>
+        <div id="chartsGrid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5"></div>
+      </div>
+
+      <!-- ═══════════════════ DB TABLES ═══════════════════ -->
+      <!-- Students -->
+      <div class="panel" id="studentsPanel">
+        <div id="tableHdr-students"></div>
+        <div class="card p-4 mb-4 grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+          <div class="search-wrap md:col-span-2"><span class="search-icon"><i class="fas fa-search"></i></span><input type="text" id="search-students" class="form-control" placeholder="Search students…"/></div>
+          <select id="filter-students-batch" class="form-control"><option value="">All Batches</option></select>
+        </div>
+        <div class="card table-wrap mb-3"><table><thead><tr id="head-students"><th><input type="checkbox" id="master-students"/></th></tr></thead><tbody id="body-students"></tbody></table></div>
+        <div class="pagination"><button class="page-btn" id="prev-students"><i class="fas fa-chevron-left"></i> Prev</button><div class="page-numbers" id="pages-students"></div><button class="page-btn" id="next-students">Next <i class="fas fa-chevron-right"></i></button></div>
+      </div>
+      <!-- Batches -->
+      <div class="panel" id="batchesPanel">
+        <div id="tableHdr-batches"></div>
+        <div class="card p-4 mb-4"><div class="search-wrap"><span class="search-icon"><i class="fas fa-search"></i></span><input type="text" id="search-batches" class="form-control" placeholder="Search batches…"/></div></div>
+        <div class="card table-wrap mb-3"><table><thead><tr id="head-batches"><th><input type="checkbox" id="master-batches"/></th></tr></thead><tbody id="body-batches"></tbody></table></div>
+        <div class="pagination"><button class="page-btn" id="prev-batches"><i class="fas fa-chevron-left"></i> Prev</button><div class="page-numbers" id="pages-batches"></div><button class="page-btn" id="next-batches">Next <i class="fas fa-chevron-right"></i></button></div>
+      </div>
+      <!-- Admins -->
+      <div class="panel" id="adminsPanel">
+        <div id="tableHdr-admins"></div>
+        <div class="card p-4 mb-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div class="search-wrap md:col-span-2"><span class="search-icon"><i class="fas fa-search"></i></span><input type="text" id="search-admins" class="form-control" placeholder="Search admins…"/></div>
+          <select id="filter-admins-role" class="form-control"><option value="">All Roles</option></select>
+        </div>
+        <div class="card table-wrap mb-3"><table><thead><tr id="head-admins"><th><input type="checkbox" id="master-admins"/></th></tr></thead><tbody id="body-admins"></tbody></table></div>
+        <div class="pagination"><button class="page-btn" id="prev-admins"><i class="fas fa-chevron-left"></i> Prev</button><div class="page-numbers" id="pages-admins"></div><button class="page-btn" id="next-admins">Next <i class="fas fa-chevron-right"></i></button></div>
+      </div>
+      <!-- Attendance -->
+      <div class="panel" id="attendancePanel">
+        <div id="tableHdr-attendance_logs"></div>
+        <div class="card p-4 mb-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div class="search-wrap"><span class="search-icon"><i class="fas fa-search"></i></span><input type="text" id="search-attendance_logs" class="form-control" placeholder="Search by student ID…"/></div>
+          <select id="filter-attendance_logs-student" class="form-control"><option value="">All Students</option></select>
+          <input type="date" id="filter-attendance_logs-date" class="form-control" title="Filter by date"/>
+        </div>
+        <div class="card table-wrap mb-3"><table><thead><tr id="head-attendance_logs"><th><input type="checkbox" id="master-attendance_logs"/></th></tr></thead><tbody id="body-attendance_logs"></tbody></table></div>
+        <div class="pagination">
+          <button class="page-btn" id="prev-attendance_logs"><i class="fas fa-chevron-left"></i> Prev</button>
+          <div class="page-numbers" id="pages-attendance_logs"></div>
+          <button class="page-btn btn btn-ghost btn-sm" id="copyAttendanceBtn"><i class="fas fa-copy"></i> Copy IDs</button>
+          <button class="page-btn" id="next-attendance_logs">Next <i class="fas fa-chevron-right"></i></button>
+        </div>
+      </div>
+      <!-- Certificates -->
+      <div class="panel" id="certificatesPanel">
+        <div id="tableHdr-certificates"></div>
+        <div class="card p-4 mb-4 grid grid-cols-1 md:grid-cols-4 gap-3">
+          <div class="search-wrap md:col-span-2"><span class="search-icon"><i class="fas fa-search"></i></span><input type="text" id="search-certificates" class="form-control" placeholder="Search certificates…"/></div>
+          <select id="filter-certificates-student" class="form-control"><option value="">All Students</option></select>
+          <select id="filter-certificates-status" class="form-control"><option value="">All Statuses</option></select>
+        </div>
+        <div class="card table-wrap mb-3"><table><thead><tr id="head-certificates"><th><input type="checkbox" id="master-certificates"/></th></tr></thead><tbody id="body-certificates"></tbody></table></div>
+        <div class="pagination"><button class="page-btn" id="prev-certificates"><i class="fas fa-chevron-left"></i> Prev</button><div class="page-numbers" id="pages-certificates"></div><button class="page-btn" id="next-certificates">Next <i class="fas fa-chevron-right"></i></button></div>
+      </div>
+      <!-- Payments -->
+      <div class="panel" id="paymentsPanel">
+        <div id="tableHdr-payments"></div>
+        <div class="card p-4 mb-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div class="search-wrap md:col-span-2"><span class="search-icon"><i class="fas fa-search"></i></span><input type="text" id="search-payments" class="form-control" placeholder="Search payments…"/></div>
+          <select id="filter-payments-status" class="form-control"><option value="">All Statuses</option></select>
+        </div>
+        <div class="card table-wrap mb-3"><table><thead><tr id="head-payments"><th><input type="checkbox" id="master-payments"/></th></tr></thead><tbody id="body-payments"></tbody></table></div>
+        <div class="pagination"><button class="page-btn" id="prev-payments"><i class="fas fa-chevron-left"></i> Prev</button><div class="page-numbers" id="pages-payments"></div><button class="page-btn" id="next-payments">Next <i class="fas fa-chevron-right"></i></button></div>
+      </div>
+      <!-- Roles -->
+      <div class="panel" id="rolesPanel">
+        <div id="tableHdr-roles"></div>
+        <div class="card p-4 mb-4"><div class="search-wrap"><span class="search-icon"><i class="fas fa-search"></i></span><input type="text" id="search-roles" class="form-control" placeholder="Search roles…"/></div></div>
+        <div class="card table-wrap mb-3"><table><thead><tr id="head-roles"><th><input type="checkbox" id="master-roles"/></th></tr></thead><tbody id="body-roles"></tbody></table></div>
+        <div class="pagination"><button class="page-btn" id="prev-roles"><i class="fas fa-chevron-left"></i> Prev</button><div class="page-numbers" id="pages-roles"></div><button class="page-btn" id="next-roles">Next <i class="fas fa-chevron-right"></i></button></div>
+      </div>
+      <!-- Task Submissions -->
+      <div class="panel" id="taskPanel">
+        <div id="tableHdr-task_submissions"></div>
+        <div class="card p-4 mb-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div class="search-wrap"><span class="search-icon"><i class="fas fa-search"></i></span><input type="text" id="search-task_submissions" class="form-control" placeholder="Search submissions…"/></div>
+          <select id="filter-task_submissions-student" class="form-control"><option value="">All Students</option></select>
+          <input type="date" id="filter-task_submissions-date" class="form-control"/>
+        </div>
+        <div class="card table-wrap mb-3"><table><thead><tr id="head-task_submissions"><th><input type="checkbox" id="master-task_submissions"/></th></tr></thead><tbody id="body-task_submissions"></tbody></table></div>
+        <div class="pagination">
+          <button class="page-btn" id="prev-task_submissions"><i class="fas fa-chevron-left"></i> Prev</button>
+          <div class="page-numbers" id="pages-task_submissions"></div>
+          <button class="btn btn-warning btn-sm" id="nonSubmittersBtn"><i class="fas fa-user-times"></i> Non-Submitters</button>
+          <button class="page-btn" id="next-task_submissions">Next <i class="fas fa-chevron-right"></i></button>
+        </div>
+      </div>
+
+      <!-- ═══════════════════ FIREBASE CONTENT ═══════════════════ -->
+      <!-- Notifications -->
+      <div class="panel" id="notificationsPanel">
+        <div class="flex justify-between items-center mb-5 flex-wrap gap-3">
+          <div><div class="section-title"><i class="fas fa-bell text-primary mr-2"></i>Notifications</div><div class="section-sub">Push notification management via Firebase</div></div>
+          <button class="btn btn-success btn-sm" id="notifAddBtn"><i class="fas fa-plus"></i> Add</button>
+        </div>
+        <div class="card p-5 mb-4" id="notifFormCard">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="form-group"><label class="form-label">Title</label><input id="notifTitle" class="form-control" placeholder="Notification title"/></div>
+            <div class="form-group"><label class="form-label">Message</label><textarea id="notifMsg" class="form-control" rows="2" placeholder="Notification message"></textarea></div>
+          </div>
+          <div class="flex gap-3 mt-2">
+            <button id="notifSaveBtn" class="btn btn-success btn-sm"><i class="fas fa-save"></i> Save</button>
+            <button id="notifCancelBtn" class="btn btn-ghost btn-sm" style="display:none;"><i class="fas fa-times"></i> Cancel</button>
+          </div>
+        </div>
+        <div id="notifList"></div>
+      </div>
+      <!-- Carousel -->
+      <div class="panel" id="carouselPanel">
+        <div class="flex justify-between items-center mb-5 flex-wrap gap-3">
+          <div><div class="section-title"><i class="fas fa-images mr-2" style="color:var(--primary)"></i>Carousel</div><div class="section-sub">Manage homepage carousel slides</div></div>
+          <button class="btn btn-success btn-sm" id="carAddBtn"><i class="fas fa-plus"></i> Add</button>
+        </div>
+        <div class="card p-5 mb-4" id="carFormCard">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="form-group"><label class="form-label">Image URL</label><input id="carImg" class="form-control" placeholder="https://…"/></div>
+            <div class="form-group"><label class="form-label">Target URL</label><input id="carUrl" class="form-control" placeholder="https://…"/></div>
+            <div class="form-group"><label class="form-label">Order</label><input id="carOrder" type="number" class="form-control" value="1"/></div>
+          </div>
+          <div class="flex gap-3 mt-2">
+            <button id="carSaveBtn" class="btn btn-success btn-sm"><i class="fas fa-save"></i> Save</button>
+            <button id="carCancelBtn" class="btn btn-ghost btn-sm" style="display:none;"><i class="fas fa-times"></i> Cancel</button>
+          </div>
+        </div>
+        <div id="carList"></div>
+      </div>
+      <!-- Announcements -->
+      <div class="panel" id="announcementsPanel">
+        <div class="flex justify-between items-center mb-5 flex-wrap gap-3">
+          <div><div class="section-title"><i class="fas fa-bullhorn mr-2" style="color:var(--warning)"></i>Announcement</div><div class="section-sub">Latest platform announcement</div></div>
+        </div>
+        <div class="card p-5 mb-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="form-group"><label class="form-label">Title</label><input id="annTitle" class="form-control" placeholder="Announcement title"/></div>
+            <div class="form-group"><label class="form-label">Image URL</label><input id="annImg" class="form-control" placeholder="https://…"/></div>
+            <div class="form-group md:col-span-2"><label class="form-label">Description</label><textarea id="annDesc" class="form-control" rows="3" placeholder="Description"></textarea></div>
+          </div>
+          <button id="annSaveBtn" class="btn btn-primary btn-sm mt-2"><i class="fas fa-save"></i> Update Announcement</button>
+        </div>
+        <div id="currentAnn"></div>
+      </div>
+      <!-- Internships -->
+      <div class="panel" id="internshipsPanel">
+        <div class="flex justify-between items-center mb-5 flex-wrap gap-3">
+          <div><div class="section-title"><i class="fas fa-briefcase mr-2" style="color:var(--info)"></i>Internships</div><div class="section-sub">Manage internship listings</div></div>
+          <button class="btn btn-success btn-sm" id="intAddBtn"><i class="fas fa-plus"></i> Add</button>
+        </div>
+        <div class="card p-5 mb-4" id="intFormCard">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="form-group"><label class="form-label">Name</label><input id="intName" class="form-control"/></div>
+            <div class="form-group"><label class="form-label">Work Description</label><input id="intWork" class="form-control"/></div>
+            <div class="form-group"><label class="form-label">Eligibility</label><input id="intElig" class="form-control"/></div>
+            <div class="form-group"><label class="form-label">Stipend</label><input id="intStip" class="form-control"/></div>
+            <div class="form-group"><label class="form-label">Dates / Duration</label><input id="intDates" class="form-control"/></div>
+            <div class="form-group"><label class="form-label">Application Link</label><input id="intLink" class="form-control" type="url"/></div>
+          </div>
+          <div class="flex gap-3 mt-2">
+            <button id="intSaveBtn" class="btn btn-success btn-sm"><i class="fas fa-save"></i> Save</button>
+            <button id="intCancelBtn" class="btn btn-ghost btn-sm" style="display:none;"><i class="fas fa-times"></i> Cancel</button>
+          </div>
+        </div>
+        <div id="intList"></div>
+      </div>
+      <!-- Courses -->
+      <div class="panel" id="coursesPanel">
+        <div class="flex justify-between items-center mb-5 flex-wrap gap-3">
+          <div><div class="section-title"><i class="fas fa-graduation-cap mr-2" style="color:var(--success)"></i>Courses</div><div class="section-sub">Course library management</div></div>
+          <button class="btn btn-success btn-sm" id="courseAddBtn"><i class="fas fa-plus"></i> Add</button>
+        </div>
+        <div class="card p-5 mb-4" id="courseFormCard">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="form-group"><label class="form-label">Title</label><input id="cTitle" class="form-control"/></div>
+            <div class="form-group"><label class="form-label">Instructor</label><input id="cInst" class="form-control"/></div>
+            <div class="form-group"><label class="form-label">Duration</label><input id="cDur" class="form-control"/></div>
+            <div class="form-group"><label class="form-label">Category</label><input id="cCat" class="form-control"/></div>
+            <div class="form-group"><label class="form-label">Image URL</label><input id="cImg" class="form-control" type="url"/></div>
+            <div class="form-group"><label class="form-label">PDF URL</label><input id="cPdf" class="form-control" type="url"/></div>
+            <div class="form-group md:col-span-2"><label class="form-label">Description</label><textarea id="cDesc" class="form-control" rows="2"></textarea></div>
+          </div>
+          <div class="flex gap-3 mt-2">
+            <button id="courseSaveBtn" class="btn btn-success btn-sm"><i class="fas fa-save"></i> Save</button>
+            <button id="courseCancelBtn" class="btn btn-ghost btn-sm" style="display:none;"><i class="fas fa-times"></i> Cancel</button>
+          </div>
+        </div>
+        <div id="courseList"></div>
+      </div>
+      <!-- Feedback -->
+      <div class="panel" id="feedbackPanel">
+        <div class="mb-5"><div class="section-title"><i class="fas fa-star mr-2" style="color:var(--warning)"></i>User Feedback</div><div class="section-sub">Read-only feedback from students</div></div>
+        <div id="feedbackList"></div>
+      </div>
+      <!-- Reports -->
+      <div class="panel" id="reportsPanel">
+        <div class="mb-5"><div class="section-title"><i class="fas fa-flag mr-2" style="color:var(--danger)"></i>Problem Reports</div><div class="section-sub">Issues reported by students</div></div>
+        <div id="reportsList"></div>
+      </div>
+
+      <!-- ═══════════════════ TOOLS ═══════════════════ -->
+      <!-- Class Links -->
+      <div class="panel" id="classLinksPanel">
+        <div class="mb-5"><div class="section-title"><i class="fas fa-link mr-2" style="color:var(--primary)"></i>Class Link Manager</div><div class="section-sub">Set live class links per batch</div></div>
+        <div class="card p-6" style="max-width:520px">
+          <div class="form-group"><label class="form-label">Select Batch</label><select id="classLinkBatch" class="form-control"><option value="">— Select Batch —</option></select></div>
+          <div class="form-group"><label class="form-label">Class Link (URL)</label><input type="url" id="classLinkUrl" class="form-control" placeholder="https://meet.google.com/…"/></div>
+          <div class="flex gap-3 justify-end mt-4">
+            <button class="btn btn-ghost btn-sm" id="classLinkClear"><i class="fas fa-times"></i> Clear</button>
+            <button class="btn btn-primary btn-sm" id="classLinkSave"><i class="fas fa-save"></i> Save Link</button>
+          </div>
+        </div>
+      </div>
+      <!-- Payment Management -->
+      <div class="panel" id="paymentMgmtPanel">
+        <div class="mb-5"><div class="section-title"><i class="fas fa-credit-card mr-2" style="color:var(--success)"></i>Bulk Payment Update</div><div class="section-sub">Update payment status for entire batch</div></div>
+        <div class="card p-6" style="max-width:520px">
+          <div class="form-group"><label class="form-label">Select Batch</label><select id="pmtBatch" class="form-control"><option value="">— Select Batch —</option></select></div>
+          <div class="form-group"><label class="form-label">New Payment Status</label>
+            <select id="pmtStatus" class="form-control">
+              <option value="">— Select Status —</option>
+              <option value="pending">Pending</option>
+              <option value="success">Success</option>
+              <option value="failed">Failed</option>
+              <option value="refunded">Refunded</option>
+            </select>
+          </div>
+          <div class="flex gap-3 justify-end mt-4">
+            <button class="btn btn-ghost btn-sm" id="pmtClear"><i class="fas fa-times"></i> Clear</button>
+            <button class="btn btn-primary btn-sm" id="pmtSave"><i class="fas fa-save"></i> Update All</button>
+          </div>
+        </div>
+      </div>
+      <!-- Settings -->
+      <div class="panel" id="settingsPanel">
+        <div class="mb-5"><div class="section-title"><i class="fas fa-cog mr-2"></i>Settings & Account</div><div class="section-sub">Firebase authentication</div></div>
+        <div class="card p-6" style="max-width:420px" id="authCard">
+          <div style="text-align:center; margin-bottom:20px;">
+            <div style="font-size:48px; color:var(--primary);"><i class="fas fa-lock"></i></div>
+            <h3 style="margin-top:12px; font-weight:700;">Admin Access</h3>
+            <p style="color:#94a3b8; font-size:0.85rem;">Firebase account required for content management</p>
+          </div>
+          <div id="authContent">
+            <div class="form-group"><label class="form-label">Email</label><input type="email" id="adminEmail" class="form-control" placeholder="admin@ir-skillup.com"/></div>
+            <div class="form-group"><label class="form-label">Password</label><input type="password" id="adminPassword" class="form-control" placeholder="••••••••"/></div>
+            <button id="loginBtn" class="btn btn-primary w-full" style="width:100%; justify-content:center; margin-top:4px;"><i class="fas fa-arrow-right-to-bracket"></i> Login</button>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- ═══════ GENERIC DB RECORD MODAL ═══════ -->
+<div class="modal-overlay" id="recordModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 id="recordModalTitle">Edit Record</h3>
+      <button class="modal-close" id="recordModalClose"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-1" id="recordFormFields"></div>
+      <div id="recordViewData" class="hidden"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" id="recordModalCancel">Cancel</button>
+      <button class="btn btn-success btn-sm" id="recordModalSave">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ CONFIRM / ALERT MODAL ═══════ -->
+<div class="modal-overlay" id="alertModal">
+  <div class="alert-box">
+    <div id="alertIcon" style="font-size:2.5rem; margin-bottom:12px;"></div>
+    <h3 id="alertTitle" style="font-size:1.1rem; font-weight:700; margin-bottom:8px;"></h3>
+    <p id="alertMsg" style="font-size:0.875rem; color:#64748b; line-height:1.5; margin-bottom:20px;"></p>
+    <div style="display:flex; gap:10px; justify-content:center;">
+      <button class="btn btn-ghost btn-sm hidden" id="alertCancelBtn">No, Cancel</button>
+      <button class="btn btn-primary btn-sm" id="alertOkBtn">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ LOADING OVERLAY ═══════ -->
+<div id="loadingOverlay"><div class="spinner"></div></div>
+
+<!-- ═══════ TOAST ═══════ -->
+<div id="toast"><span class="toast-icon"></span><span class="toast-msg"></span></div>
+
+<!-- ═════════════════════════════════════════════
+     JAVASCRIPT
+════════════════════════════════════════════════ -->
+<script type="module">
+  // ══════════════════════════════════════════
+  // CONFIGURATION — update with your credentials
+  // ══════════════════════════════════════════
+  const SUPABASE_URL = "https://qhrdtxuwxrnbxvtyxfmj.supabase.co";
+  const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFocmR0eHV3eHJuYnh2dHl4Zm1qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgyNTQ5NTIsImV4cCI6MjA2MzgzMDk1Mn0.H38kfGlcwuIz9Ir0MKpHuHgUsXfBfPN17IxI_4VLCEc";
+
+  const FIREBASE_CONFIG = {
+    apiKey: "AIzaSyCDUB-7E0YY2heqY0HTQQ7kyoLGXOkQ51k",
+    authDomain: "ir-skillup.firebaseapp.com",
+    projectId: "ir-skillup",
+    storageBucket: "ir-skillup.firebasestorage.app",
+    messagingSenderId: "993530770519",
+    appId: "1:993530770519:web:966766c99f9d609e1c5f12"
+  };
+
+  // ══════════════════════════════════════════
+  // INIT CLIENTS
+  // ══════════════════════════════════════════
+  import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+  const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  firebase.initializeApp(FIREBASE_CONFIG);
+  const db   = firebase.firestore();
+  const auth = firebase.auth();
+
+  // ══════════════════════════════════════════
+  // UI UTILITIES
+  // ══════════════════════════════════════════
+  const loading = {
+    show: () => document.getElementById('loadingOverlay').classList.add('active'),
+    hide: () => document.getElementById('loadingOverlay').classList.remove('active')
+  };
+
+  let toastTimer;
+  function showToast(msg, type = 'success') {
+    const t = document.getElementById('toast');
+    const icons = { success: '✓', error: '✕', info: 'ℹ' };
+    t.querySelector('.toast-icon').textContent = icons[type] || '✓';
+    t.querySelector('.toast-msg').textContent = msg;
+    t.className = `show toast-${type}`;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.className = '', 3500);
+  }
+
+  function showAlert(title, msg, { isConfirm = false, icon = null } = {}) {
+    return new Promise(resolve => {
+      const modal = document.getElementById('alertModal');
+      document.getElementById('alertTitle').textContent = title;
+      document.getElementById('alertMsg').textContent   = msg;
+      const iconEl  = document.getElementById('alertIcon');
+      iconEl.innerHTML = icon || (isConfirm ? '⚠️' : 'ℹ️');
+      const cancelBtn = document.getElementById('alertCancelBtn');
+      const okBtn     = document.getElementById('alertOkBtn');
+      cancelBtn.classList.toggle('hidden', !isConfirm);
+      modal.classList.add('active');
+
+      const cleanup = (val) => {
+        modal.classList.remove('active');
+        okBtn.removeEventListener('click', onOk);
+        cancelBtn.removeEventListener('click', onCancel);
+        resolve(val);
+      };
+      const onOk     = () => cleanup(true);
+      const onCancel = () => cleanup(false);
+      okBtn.addEventListener('click', onOk);
+      cancelBtn.addEventListener('click', onCancel);
+    });
+  }
+
+  function fmt(str) {
+    if (!str && str !== 0) return '-';
+    return String(str).replace(/_/g,' ').split(' ').map(w=>w.charAt(0).toUpperCase()+w.slice(1)).join(' ');
+  }
+
+  function fmtDate(val) {
+    if (!val) return '-';
+    return new Date(val).toLocaleDateString('en-US', { year:'numeric', month:'short', day:'numeric' });
+  }
+
+  function copyToClipboard(text) {
+    const el = document.createElement('textarea');
+    el.value = text; document.body.appendChild(el); el.select();
+    document.execCommand('copy'); document.body.removeChild(el);
+  }
+
+  // ══════════════════════════════════════════
+  // NAVIGATION
+  // ══════════════════════════════════════════
+  const panelTitles = {
+    dashboardPanel: ['Dashboard','Live stats overview'],
+    studentsPanel:  ['Students','Manage student records'],
+    batchesPanel:   ['Batches','Batch management'],
+    adminsPanel:    ['Admins','Admin user management'],
+    attendancePanel:['Attendance','Attendance log tracking'],
+    certificatesPanel:['Certificates','Certificate management'],
+    paymentsPanel:  ['Payments','Payment records'],
+    rolesPanel:     ['Roles','Role definitions'],
+    taskPanel:      ['Task Submissions','Student task tracking'],
+    notificationsPanel: ['Notifications','Firebase push notifications'],
+    carouselPanel:  ['Carousel','Homepage carousel'],
+    announcementsPanel: ['Announcements','Platform announcements'],
+    internshipsPanel:   ['Internships','Internship listings'],
+    coursesPanel:   ['Courses','Course library'],
+    feedbackPanel:  ['Feedback','User feedback'],
+    reportsPanel:   ['Reports','Problem reports'],
+    classLinksPanel:['Class Links','Live class link manager'],
+    paymentMgmtPanel:   ['Payment Update','Bulk payment management'],
+    settingsPanel:  ['Settings','Account & preferences'],
+  };
+
+  function switchPanel(panelId) {
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+    document.getElementById(panelId)?.classList.add('active');
+    document.querySelector(`.nav-item[data-panel="${panelId}"]`)?.classList.add('active');
+    const [title, sub] = panelTitles[panelId] || [panelId, ''];
+    document.getElementById('topbarTitle').textContent = title;
+    document.getElementById('topbarSub').textContent   = sub;
+    onPanelActivated(panelId);
+  }
+
+  document.querySelectorAll('.nav-item[data-panel]').forEach(item => {
+    item.addEventListener('click', () => {
+      switchPanel(item.dataset.panel);
+      if(window.innerWidth < 768) document.getElementById('sidebar').classList.remove('open');
+    });
+  });
+
+  document.getElementById('menuToggle').addEventListener('click', () => {
+    const s = document.getElementById('sidebar');
+    if(window.innerWidth < 768) { s.classList.toggle('open'); }
+    else {
+      s.classList.toggle('collapsed');
+      document.getElementById('main').classList.toggle('full');
+    }
+  });
+
+  // ══════════════════════════════════════════
+  // DARK MODE
+  // ══════════════════════════════════════════
+  const darkBtn   = document.getElementById('darkToggleBtn');
+  const darkIcon  = document.getElementById('darkIcon');
+  const darkLabel = document.getElementById('darkLabel');
+
+  function applyDark(on) {
+    document.body.classList.toggle('dark', on);
+    darkIcon.className = on ? 'fas fa-sun' : 'fas fa-moon';
+    darkLabel.textContent = on ? 'Light Mode' : 'Dark Mode';
+    localStorage.setItem('darkMode', on);
+  }
+  darkBtn.addEventListener('click', () => applyDark(!document.body.classList.contains('dark')));
+  if(localStorage.getItem('darkMode') === 'true') applyDark(true);
+
+  // ══════════════════════════════════════════
+  // SUPABASE TABLE DEFINITIONS
+  // ══════════════════════════════════════════
+  const PAGE_SIZE = 10;
+  let currentPage = {};
+  let allData = {};
+  let filteredData = {};
+  let realtimeSubs = {};
+  let currentEditId   = null;
+  let currentEditTable= null;
+  let isEditMode = false;
+  const chartInstances = {};
+
+  const tableConfigs = {
+    students: {
+      displayFields: ['student_id','full_name','email','phone_number','college','batch_id','payment_status','user_state','access','credits'],
+      allFields: ['student_id','full_name','email','phone_number','password','college','branch','batch_id','aadhaar','member_since','linkedin_link','github_link','facebook_link','attendance_count','streak','role_id','dob','city','payment_status','access','user_state','credits','class_link'],
+      idField: 'student_id',
+      options: { payment_status:['pending','success','failed','refunded'], user_state:['online','offline','busy'], access:['allow','deny','block'] },
+      generateId: generateNextStudentId,
+    },
+    batches: {
+      displayFields: ['batch_id','batch_name','start_date','end_date'],
+      allFields:     ['batch_id','batch_name','start_date','end_date'],
+      idField: 'batch_id', options: {},
+    },
+    admins: {
+      displayFields: ['admin_id','full_name','email','role_id'],
+      allFields:     ['admin_id','full_name','email','phone_number','password','role_id','created_at','last_login'],
+      idField: 'admin_id', options: {},
+    },
+    attendance_logs: {
+      displayFields: ['attendance_id','student_id','date','present','streak'],
+      allFields:     ['attendance_id','student_id','date','present','streak'],
+      idField: 'attendance_id', options: {},
+    },
+    certificates: {
+      displayFields: ['certificate_id','student_id','batch_id','course_name','issue_date','status'],
+      allFields:     ['certificate_id','student_id','batch_id','course_name','issue_date','status'],
+      idField: 'certificate_id', options: { status:['issued','revoked','pending'] },
+    },
+    payments: {
+      displayFields: ['payment_id','student_id','amount','payment_date','payment_status'],
+      allFields:     ['payment_id','student_id','amount','payment_date','payment_method','payment_status','transaction_id','remarks'],
+      idField: 'payment_id', options: { payment_status:['pending','success','failed','refunded'] },
+    },
+    roles: {
+      displayFields: ['role_id','role_name'],
+      allFields:     ['role_id','role_name'],
+      idField: 'role_id', options: {},
+    },
+    task_submissions: {
+      displayFields: ['submission_id','student_id','task_name','task_link','submitted_at'],
+      allFields:     ['submission_id','student_id','task_name','task_link','submitted_at'],
+      idField: 'submission_id', options: {},
+    },
+  };
+
+  // panel → tableName mapping
+  const panelToTable = {
+    studentsPanel: 'students', batchesPanel: 'batches', adminsPanel: 'admins',
+    attendancePanel: 'attendance_logs', certificatesPanel: 'certificates',
+    paymentsPanel: 'payments', rolesPanel: 'roles', taskPanel: 'task_submissions',
+  };
+
+  // ══════════════════════════════════════════
+  // TABLE HEADER BUILDER
+  // ══════════════════════════════════════════
+  function buildTableHeader(tableName) {
+    const cfg = tableConfigs[tableName];
+    const container = document.getElementById(`tableHdr-${tableName}`);
+    if(!container) return;
+    container.innerHTML = `
+      <div class="flex justify-between items-center mb-5 flex-wrap gap-3">
+        <div>
+          <div class="section-title">${fmt(tableName)}</div>
+          <div class="section-sub" id="count-${tableName}">Loading…</div>
+        </div>
+        <div class="flex gap-2 flex-wrap">
+          <button class="btn btn-primary btn-sm" data-add="${tableName}"><i class="fas fa-plus"></i> Add New</button>
+          <button class="btn btn-danger btn-sm" id="delSelected-${tableName}" disabled><i class="fas fa-trash-alt"></i> Delete Selected</button>
+        </div>
+      </div>`;
+
+    // Build table headers
+    const headRow = document.getElementById(`head-${tableName}`);
+    if(headRow) {
+      while(headRow.children.length > 1) headRow.removeChild(headRow.lastChild);
+      cfg.displayFields.forEach(f => {
+        const th = document.createElement('th'); th.textContent = fmt(f); headRow.appendChild(th);
+      });
+      const ath = document.createElement('th'); ath.className='text-right'; ath.textContent='Actions'; headRow.appendChild(ath);
+    }
+
+    // Delete selected
+    document.getElementById(`delSelected-${tableName}`)?.addEventListener('click', ()=>deleteSelected(tableName));
+
+    // Add new
+    container.querySelector(`[data-add="${tableName}"]`)?.addEventListener('click', ()=>openAddModal(tableName));
+
+    // Master checkbox
+    const master = document.getElementById(`master-${tableName}`);
+    if(master) master.addEventListener('change', ()=>{
+      document.querySelectorAll(`.cb-${tableName}`).forEach(cb=>cb.checked=master.checked);
+      updateDelBtn(tableName);
+    });
+  }
+
+  // ══════════════════════════════════════════
+  // LOAD & RENDER TABLE
+  // ══════════════════════════════════════════
+  async function loadTable(tableName) {
+    const cfg = tableConfigs[tableName];
+    if(!cfg) return;
+
+    // Unsubscribe previous realtime
+    if(realtimeSubs[tableName]) {
+      supabase.removeChannel(realtimeSubs[tableName]);
+      delete realtimeSubs[tableName];
+    }
+
+    const { data, error } = await supabase.from(tableName).select('*').order(cfg.idField, {ascending:true});
+    if(error) { showToast(`Error loading ${tableName}: ${error.message}`, 'error'); return; }
+
+    allData[tableName] = data || [];
+    currentPage[tableName] = 1;
+    applyAndRender(tableName);
+    await populateFilterDropdowns(tableName);
+
+    // Realtime subscription (Supabase v2 channel API)
+    const channel = supabase.channel(`realtime:${tableName}`)
+      .on('postgres_changes', { event:'*', schema:'public', table: tableName }, payload => {
+        const id = cfg.idField;
+        switch(payload.eventType) {
+          case 'INSERT': allData[tableName].push(payload.new); break;
+          case 'UPDATE': {
+            const i = allData[tableName].findIndex(r=>r[id]===payload.new[id]);
+            if(i!==-1) allData[tableName][i]=payload.new; break;
+          }
+          case 'DELETE': allData[tableName]=allData[tableName].filter(r=>r[id]!==payload.old[id]); break;
+        }
+        applyAndRender(tableName);
+      }).subscribe();
+    realtimeSubs[tableName] = channel;
+  }
+
+  function applyAndRender(tableName) {
+    const cfg = tableConfigs[tableName];
+    const all = allData[tableName] || [];
+    const search = (document.getElementById(`search-${tableName}`)?.value||'').toLowerCase();
+
+    let filtered = all.filter(r => {
+      const matchSearch = !search || cfg.displayFields.some(f=>String(r[f]||'').toLowerCase().includes(search));
+      let matchFilter = true;
+
+      // Table-specific filters
+      if(tableName==='students') {
+        const bv = document.getElementById('filter-students-batch')?.value||'';
+        if(bv) matchFilter = String(r.batch_id)===bv;
+      } else if(tableName==='admins') {
+        const rv = document.getElementById('filter-admins-role')?.value||'';
+        if(rv) matchFilter = String(r.role_id)===rv;
+      } else if(tableName==='attendance_logs') {
+        const sv = document.getElementById('filter-attendance_logs-student')?.value||'';
+        const dv = document.getElementById('filter-attendance_logs-date')?.value||'';
+        if(sv) matchFilter = matchFilter && (r.student_id===sv);
+        if(dv) matchFilter = matchFilter && (new Date(r.date).toISOString().slice(0,10)===dv);
+      } else if(tableName==='certificates') {
+        const sv = document.getElementById('filter-certificates-student')?.value||'';
+        const stv = document.getElementById('filter-certificates-status')?.value||'';
+        if(sv)  matchFilter = matchFilter && (r.student_id===sv);
+        if(stv) matchFilter = matchFilter && (r.status===stv);
+      } else if(tableName==='payments') {
+        const pv = document.getElementById('filter-payments-status')?.value||'';
+        if(pv) matchFilter = r.payment_status===pv;
+      } else if(tableName==='task_submissions') {
+        const sv = document.getElementById('filter-task_submissions-student')?.value||'';
+        const dv = document.getElementById('filter-task_submissions-date')?.value||'';
+        if(sv) matchFilter = matchFilter && (r.student_id===sv);
+        if(dv) matchFilter = matchFilter && (new Date(r.submitted_at).toISOString().slice(0,10)===dv);
+      }
+      return matchSearch && matchFilter;
+    });
+
+    filteredData[tableName] = filtered;
+    const countEl = document.getElementById(`count-${tableName}`);
+    if(countEl) countEl.textContent = `${filtered.length} record${filtered.length===1?'':'s'}`;
+    renderTable(tableName);
+    setupPagination(tableName);
+  }
+
+  function renderTable(tableName) {
+    const cfg = tableConfigs[tableName];
+    const tbody = document.getElementById(`body-${tableName}`);
+    if(!tbody) return;
+    tbody.innerHTML = '';
+
+    const pg = currentPage[tableName] || 1;
+    const start = (pg-1)*PAGE_SIZE;
+    const recs  = (filteredData[tableName]||[]).slice(start, start+PAGE_SIZE);
+
+    if(!recs.length) {
+      const tr=document.createElement('tr');
+      const td=document.createElement('td');
+      td.colSpan = cfg.displayFields.length+3;
+      td.className = 'py-8 text-center text-gray-400';
+      td.innerHTML = `<i class="fas fa-inbox" style="font-size:2rem;display:block;margin-bottom:8px;opacity:0.4;"></i>No records found`;
+      tr.appendChild(td); tbody.appendChild(tr); return;
+    }
+
+    recs.forEach(rec => {
+      const tr = document.createElement('tr');
+      // Checkbox
+      const cbTd = document.createElement('td');
+      const cb   = document.createElement('input');
+      cb.type = 'checkbox'; cb.className = `cb-${tableName}`; cb.dataset.id = rec[cfg.idField];
+      cb.addEventListener('change', ()=>updateDelBtn(tableName));
+      cbTd.appendChild(cb); tr.appendChild(cbTd);
+
+      // Display fields
+      cfg.displayFields.forEach(f => {
+        const td = document.createElement('td');
+        let v = rec[f];
+
+        if(f==='present' && typeof v==='boolean') {
+          td.innerHTML = `<span class="badge ${v?'badge-success':'badge-danger'}">${v?'Present':'Absent'}</span>`;
+        } else if(['payment_status'].includes(f) && typeof v==='string') {
+          const cls = v==='success'?'badge-success':v==='pending'?'badge-warning':v==='failed'?'badge-danger':'badge-gray';
+          td.innerHTML = `<span class="badge ${cls}">${v}</span>`;
+        } else if(f==='access' && typeof v==='string') {
+          const cls = v==='allow'?'badge-success':v==='deny'?'badge-warning':'badge-danger';
+          td.innerHTML = `<span class="badge ${cls}">${v}</span>`;
+        } else if(f==='user_state' && typeof v==='string') {
+          const cls = v==='online'?'badge-success':v==='busy'?'badge-warning':'badge-danger';
+          td.innerHTML = `<span class="badge ${cls}">${v}</span>`;
+        } else if(f==='status' && tableName==='certificates') {
+          const cls = v==='issued'?'badge-success':v==='pending'?'badge-warning':'badge-danger';
+          td.innerHTML = `<span class="badge ${cls}">${v||'-'}</span>`;
+        } else if(f.includes('_date')||f==='member_since'||f==='dob'||f==='submitted_at'||f==='created_at'||f==='last_login') {
+          td.textContent = v ? fmtDate(v) : '-';
+        } else if(f==='batch_id') {
+          const b = (allData.batches||[]).find(b=>b.batch_id===v);
+          td.textContent = b ? b.batch_name : (v||'-');
+        } else if(f==='role_id') {
+          const r = (allData.roles||[]).find(r=>r.role_id===v);
+          td.textContent = r ? r.role_name : (v||'-');
+        } else if(f.includes('_link') && v) {
+          td.innerHTML = `<a href="${v}" target="_blank" class="text-blue-500 hover:underline text-xs" style="max-width:120px;display:inline-block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${v}">Link</a>`;
+        } else {
+          const s = v!==null&&v!==undefined?String(v):'-';
+          td.textContent = s.length>40 ? s.slice(0,40)+'…' : s;
+        }
+        tr.appendChild(td);
+      });
+
+      // Actions
+      const actTd = document.createElement('td');
+      actTd.className = 'text-right';
+      const rid = rec[cfg.idField];
+      actTd.innerHTML = `
+        <button class="icon-btn edit" title="View" onclick="window.__cms.viewRec('${tableName}','${rid}')"><i class="fas fa-eye"></i></button>
+        <button class="icon-btn edit" title="Edit" onclick="window.__cms.editRec('${tableName}','${rid}')"><i class="fas fa-edit"></i></button>
+        <button class="icon-btn" title="Copy JSON" onclick="window.__cms.copyRec('${tableName}','${rid}')"><i class="fas fa-copy"></i></button>
+        <button class="icon-btn danger" title="Delete" onclick="window.__cms.deleteRec('${tableName}','${rid}')"><i class="fas fa-trash-alt"></i></button>`;
+      tr.appendChild(actTd);
+      tbody.appendChild(tr);
+    });
+  }
+
+  function setupPagination(tableName) {
+    const total = filteredData[tableName]?.length || 0;
+    const pages = Math.max(1, Math.ceil(total/PAGE_SIZE));
+    const pg    = currentPage[tableName] || 1;
+    const pagesEl = document.getElementById(`pages-${tableName}`);
+    if(!pagesEl) return;
+    pagesEl.innerHTML = '';
+    for(let i=1;i<=pages;i++) {
+      const b=document.createElement('button'); b.className='page-btn'+(i===pg?' active-page':'');
+      b.textContent=i; b.addEventListener('click',()=>{ currentPage[tableName]=i; renderTable(tableName); setupPagination(tableName); });
+      pagesEl.appendChild(b);
+    }
+    const prevBtn = document.getElementById(`prev-${tableName}`);
+    const nextBtn = document.getElementById(`next-${tableName}`);
+    if(prevBtn) prevBtn.disabled = pg<=1;
+    if(nextBtn) nextBtn.disabled = pg>=pages;
+
+    if(prevBtn) prevBtn.onclick = ()=>{ if((currentPage[tableName]||1)>1){ currentPage[tableName]--; renderTable(tableName); setupPagination(tableName); } };
+    if(nextBtn) nextBtn.onclick = ()=>{ if((currentPage[tableName]||1)<pages){ currentPage[tableName]++; renderTable(tableName); setupPagination(tableName); } };
+  }
+
+  function updateDelBtn(tableName) {
+    const n = document.querySelectorAll(`.cb-${tableName}:checked`).length;
+    const btn = document.getElementById(`delSelected-${tableName}`);
+    if(btn) btn.disabled = n===0;
+    const master = document.getElementById(`master-${tableName}`);
+    if(master) master.indeterminate = n>0 && n<(filteredData[tableName]?.length||0);
+  }
+
+  // Search / filter listeners
+  Object.keys(tableConfigs).forEach(t => {
+    const searchEl = document.getElementById(`search-${t}`);
+    if(searchEl) searchEl.addEventListener('input', ()=>{ currentPage[t]=1; applyAndRender(t); });
+    // Generic filter selects
+    ['batch','role','student','status'].forEach(fk => {
+      const el = document.getElementById(`filter-${t}-${fk}`);
+      if(el) el.addEventListener('change', ()=>{ currentPage[t]=1; applyAndRender(t); });
+    });
+    // Date filters
+    ['date'].forEach(dk => {
+      const el = document.getElementById(`filter-${t}-${dk}`);
+      if(el) el.addEventListener('change', ()=>{ currentPage[t]=1; applyAndRender(t); });
+    });
+  });
+
+  // ══════════════════════════════════════════
+  // POPULATE FILTER DROPDOWNS
+  // ══════════════════════════════════════════
+  async function populateFilterDropdowns(tableName) {
+    if(tableName==='students') {
+      const sel = document.getElementById('filter-students-batch');
+      if(sel) {
+        sel.innerHTML='<option value="">All Batches</option>';
+        (allData.batches||await fetchAll('batches')).forEach(b=>{
+          sel.innerHTML+=`<option value="${b.batch_id}">${b.batch_name}</option>`;
+        });
+      }
+    }
+    if(tableName==='admins') {
+      const sel = document.getElementById('filter-admins-role');
+      if(sel) {
+        sel.innerHTML='<option value="">All Roles</option>';
+        (allData.roles||await fetchAll('roles')).forEach(r=>{
+          sel.innerHTML+=`<option value="${r.role_id}">${r.role_name}</option>`;
+        });
+      }
+    }
+    if(tableName==='attendance_logs') {
+      const sel = document.getElementById('filter-attendance_logs-student');
+      if(sel) populateStudentsDropdown(sel);
+    }
+    if(tableName==='certificates') {
+      const ss = document.getElementById('filter-certificates-student');
+      const cs = document.getElementById('filter-certificates-status');
+      if(ss) populateStudentsDropdown(ss);
+      if(cs) { cs.innerHTML='<option value="">All Statuses</option>'; ['issued','revoked','pending'].forEach(s=>cs.innerHTML+=`<option value="${s}">${fmt(s)}</option>`); }
+    }
+    if(tableName==='payments') {
+      const ps = document.getElementById('filter-payments-status');
+      if(ps) { ps.innerHTML='<option value="">All Statuses</option>'; ['pending','success','failed','refunded'].forEach(s=>ps.innerHTML+=`<option value="${s}">${fmt(s)}</option>`); }
+    }
+    if(tableName==='task_submissions') {
+      const sel = document.getElementById('filter-task_submissions-student');
+      if(sel) populateStudentsDropdown(sel);
+    }
+  }
+
+  async function fetchAll(table) {
+    if(allData[table]) return allData[table];
+    const {data} = await supabase.from(table).select('*');
+    allData[table] = data||[];
+    return allData[table];
+  }
+
+  async function populateStudentsDropdown(sel) {
+    sel.innerHTML='<option value="">All Students</option>';
+    const data = await fetchAll('students');
+    data.forEach(s=>sel.innerHTML+=`<option value="${s.student_id}">${s.student_id}</option>`);
+  }
+
+  async function populateBatchDropdown(sel) {
+    if(!sel) return;
+    sel.innerHTML='<option value="">— Select Batch —</option>';
+    const data = await fetchAll('batches');
+    data.forEach(b=>sel.innerHTML+=`<option value="${b.batch_id}">${b.batch_name}</option>`);
+  }
+
+  // ══════════════════════════════════════════
+  // MODAL — ADD / EDIT / VIEW
+  // ══════════════════════════════════════════
+  const recordModal  = document.getElementById('recordModal');
+  const recordTitle  = document.getElementById('recordModalTitle');
+  const recordFields = document.getElementById('recordFormFields');
+  const recordView   = document.getElementById('recordViewData');
+  const recordSaveBtn= document.getElementById('recordModalSave');
+
+  document.getElementById('recordModalClose').addEventListener('click',()=>recordModal.classList.remove('active'));
+  document.getElementById('recordModalCancel').addEventListener('click',()=>recordModal.classList.remove('active'));
+  recordModal.addEventListener('click',e=>{ if(e.target===recordModal) recordModal.classList.remove('active'); });
+
+  async function openAddModal(tableName) {
+    currentEditTable = tableName;
+    currentEditId = null;
+    isEditMode = false;
+    recordTitle.textContent = `Add New ${fmt(tableName.slice(0,-1))}`;
+    const cfg = tableConfigs[tableName];
+
+    let defaults = {};
+    if(tableName==='students') {
+      const newId = await generateNextStudentId();
+      defaults = { student_id: newId, password: `irskillup${newId.slice(-3)}`, payment_status:'pending', access:'allow', user_state:'offline', credits:0, attendance_count:0, streak:0, member_since:new Date().toISOString() };
+    } else if(tableName==='attendance_logs') { defaults = { present:false, streak:0, date:new Date().toISOString() }; }
+    else if(tableName==='certificates') { defaults = { status:'issued', issue_date:new Date().toISOString() }; }
+    else if(tableName==='payments') { defaults = { payment_status:'pending', payment_date:new Date().toISOString(), amount:0 }; }
+    else if(tableName==='task_submissions') { defaults = { submitted_at:new Date().toISOString() }; }
+
+    await buildModalForm(defaults, 'add');
+    recordSaveBtn.textContent = `Add ${fmt(tableName.slice(0,-1))}`;
+    recordSaveBtn.className = 'btn btn-success btn-sm';
+    recordModal.classList.add('active');
+  }
+
+  window.editRec = async function(tableName, id) {
+    currentEditTable = tableName;
+    currentEditId = id;
+    isEditMode = true;
+    recordTitle.textContent = `Edit ${fmt(tableName.slice(0,-1))}`;
+    const { data, error } = await supabase.from(tableName).select('*').eq(tableConfigs[tableName].idField, id).single();
+    if(error) { showToast('Failed to load record', 'error'); return; }
+    await buildModalForm(data, 'edit');
+    recordSaveBtn.textContent = 'Save Changes';
+    recordSaveBtn.className = 'btn btn-primary btn-sm';
+    recordModal.classList.add('active');
+  };
+
+  window.viewRec = async function(tableName, id) {
+    currentEditTable = tableName;
+    currentEditId = id;
+    isEditMode = false;
+    recordTitle.textContent = `${fmt(tableName.slice(0,-1))} Details`;
+    const { data, error } = await supabase.from(tableName).select('*').eq(tableConfigs[tableName].idField, id).single();
+    if(error) { showToast('Failed to load record', 'error'); return; }
+    await buildModalForm(data, 'view');
+    recordModal.classList.add('active');
+  };
+
+  async function buildModalForm(data, mode) {
+    const cfg = tableConfigs[currentEditTable];
+    const fields = cfg.allFields;
+
+    if(mode==='view') {
+      recordFields.classList.add('hidden');
+      recordView.classList.remove('hidden');
+      recordSaveBtn.classList.add('hidden');
+      recordView.innerHTML = fields.map(f => {
+        let v = data[f]!==null&&data[f]!==undefined?data[f]:'-';
+        if(f.includes('_date')||f==='member_since'||f==='dob'||f==='submitted_at'||f==='created_at'||f==='last_login') v = v!=='-'?fmtDate(v):'-';
+        else if(f==='batch_id') { const b=(allData.batches||[]).find(b=>b.batch_id===v); v=b?b.batch_name:v; }
+        else if(f==='role_id')  { const r=(allData.roles||[]).find(r=>r.role_id===v); v=r?r.role_name:v; }
+        else if(f.includes('_link')&&v&&v!=='-') v=`<a href="${v}" target="_blank" class="text-blue-500 hover:underline">${v}</a>`;
+        else if(typeof v==='boolean') v=v?'Yes':'No';
+        return `<div class="view-row"><span class="view-label">${fmt(f)}</span><span class="view-value">${v}</span></div>`;
+      }).join('');
+      return;
+    }
+
+    // Edit/Add mode
+    recordFields.classList.remove('hidden');
+    recordView.classList.add('hidden');
+    recordSaveBtn.classList.remove('hidden');
+    recordFields.innerHTML = '';
+
+    for(const f of fields) {
+      const wrap = document.createElement('div');
+      wrap.className = 'form-group';
+      const label = document.createElement('label');
+      label.className = 'form-label'; label.textContent = fmt(f);
+      wrap.appendChild(label);
+
+      let input;
+      const val = data[f]!==null&&data[f]!==undefined ? data[f] : '';
+
+      if(f==='student_id'&&currentEditTable!=='students') {
+        input = document.createElement('select'); input.className='form-control'; input.name=f;
+        input.innerHTML='<option value="">Select Student</option>';
+        (allData.students||await fetchAll('students')).forEach(s=>{ input.innerHTML+=`<option value="${s.student_id}"${data[f]===s.student_id?' selected':''}>${s.student_id} — ${s.full_name||''}</option>`; });
+      } else if(f==='batch_id'&&currentEditTable!=='batches') {
+        input = document.createElement('select'); input.className='form-control'; input.name=f;
+        input.innerHTML='<option value="">Select Batch</option>';
+        (allData.batches||await fetchAll('batches')).forEach(b=>{ input.innerHTML+=`<option value="${b.batch_id}"${String(data[f])===String(b.batch_id)?' selected':''}>${b.batch_name}</option>`; });
+      } else if(f==='role_id'&&currentEditTable!=='roles') {
+        input = document.createElement('select'); input.className='form-control'; input.name=f;
+        input.innerHTML='<option value="">Select Role</option>';
+        (allData.roles||await fetchAll('roles')).forEach(r=>{ input.innerHTML+=`<option value="${r.role_id}"${String(data[f])===String(r.role_id)?' selected':''}>${r.role_name}</option>`; });
+      } else if(cfg.options[f]) {
+        input = document.createElement('select'); input.className='form-control'; input.name=f;
+        cfg.options[f].forEach(o=>{ input.innerHTML+=`<option value="${o}"${String(data[f])===String(o)?' selected':''}>${fmt(o)}</option>`; });
+      } else if(f==='present'&&currentEditTable==='attendance_logs') {
+        input = document.createElement('select'); input.className='form-control'; input.name=f;
+        input.innerHTML=`<option value="true"${data[f]===true?' selected':''}>Present</option><option value="false"${data[f]===false?' selected':''}>Absent</option>`;
+      } else if(f.includes('_date')||['member_since','dob','submitted_at','payment_date','created_at','last_login'].includes(f)) {
+        input = document.createElement('input'); input.type='date'; input.className='form-control'; input.name=f;
+        if(val) input.value = new Date(val).toISOString().slice(0,10);
+      } else if(f.includes('_link')||f==='task_link') {
+        input = document.createElement('input'); input.type='url'; input.className='form-control'; input.name=f; input.value=val;
+      } else if(['attendance_count','streak','credits','amount'].includes(f)||f.includes('_count')) {
+        input = document.createElement('input'); input.type='number'; input.className='form-control'; input.name=f; input.value=val;
+      } else {
+        input = document.createElement('input'); input.className='form-control'; input.name=f; input.value=val;
+      }
+
+      // Disable auto-generated ID on edit
+      if(f===cfg.idField && isEditMode) {
+        input.disabled = true; input.style.opacity='0.5';
+      }
+
+      wrap.appendChild(input);
+      recordFields.appendChild(wrap);
+    }
+  }
+
+  // Save
+  recordSaveBtn.addEventListener('click', async () => {
+    const cfg = tableConfigs[currentEditTable];
+    if(!cfg) return;
+    const payload = {};
+
+    for(const f of cfg.allFields) {
+      const el = recordFields.querySelector(`[name="${f}"]`);
+      if(!el || el.disabled) {
+        if(!isEditMode && f===cfg.idField && cfg.generateId) {
+          payload[f] = await cfg.generateId();
+        }
+        continue;
+      }
+      const raw = el.value;
+      if(['attendance_count','streak','credits','amount','role_id','batch_id','admin_id','payment_id','certificate_id','submission_id'].includes(f)) {
+        payload[f] = raw!==''?Number(raw):null;
+      } else if(f==='present') {
+        payload[f] = raw==='true';
+      } else if(f.includes('_date')||['member_since','dob','submitted_at','payment_date','created_at','last_login'].includes(f)) {
+        payload[f] = raw ? new Date(raw).toISOString() : null;
+      } else {
+        payload[f] = raw;
+      }
+    }
+
+    loading.show();
+    try {
+      if(isEditMode) {
+        const { error } = await supabase.from(currentEditTable).update(payload).eq(cfg.idField, currentEditId);
+        if(error) throw error;
+        showToast('Record updated successfully', 'success');
+      } else {
+        const { error } = await supabase.from(currentEditTable).insert(payload);
+        if(error) throw error;
+        showToast('Record added successfully', 'success');
+        // Credit update for task submission
+        if(currentEditTable==='task_submissions' && payload.student_id) {
+          const { data: stu } = await supabase.from('students').select('credits').eq('student_id',payload.student_id).single();
+          if(stu) await supabase.from('students').update({ credits:(stu.credits||0)+1 }).eq('student_id',payload.student_id);
+        }
+      }
+      recordModal.classList.remove('active');
+      await loadTable(currentEditTable);
+    } catch(e) {
+      showToast('Error: '+e.message, 'error');
+    }
+    loading.hide();
+  });
+
+  // Global window functions for table row buttons
+  window.__cms = {};
+  window.__cms.editRec = (t,id) => window.editRec(t,id);
+  window.__cms.viewRec = (t,id) => window.viewRec(t,id);
+  window.__cms.copyRec = async (t,id) => {
+    const cfg = tableConfigs[t];
+    const { data } = await supabase.from(t).select('*').eq(cfg.idField,id).single();
+    copyToClipboard(JSON.stringify(data,null,2));
+    showToast('Record copied to clipboard', 'info');
+  };
+  window.__cms.deleteRec = async (t,id) => {
+    const ok = await showAlert('Confirm Deletion', `Delete this ${fmt(t.slice(0,-1))}? This cannot be undone.`, {isConfirm:true});
+    if(!ok) return;
+    loading.show();
+    const { error } = await supabase.from(t).delete().eq(tableConfigs[t].idField,id);
+    loading.hide();
+    if(error) { showToast('Delete failed: '+error.message,'error'); return; }
+    showToast('Record deleted','success');
+    await loadTable(t);
+  };
+
+  async function deleteSelected(tableName) {
+    const ids = Array.from(document.querySelectorAll(`.cb-${tableName}:checked`)).map(cb=>cb.dataset.id);
+    if(!ids.length) return;
+    const ok = await showAlert('Confirm Bulk Delete', `Delete ${ids.length} selected records?`, {isConfirm:true});
+    if(!ok) return;
+    loading.show();
+    const { error } = await supabase.from(tableName).delete().in(tableConfigs[tableName].idField, ids);
+    loading.hide();
+    if(error) { showToast('Delete failed: '+error.message,'error'); return; }
+    showToast(`${ids.length} records deleted`,'success');
+    await loadTable(tableName);
+  }
+
+  // ══════════════════════════════════════════
+  // STUDENT ID GENERATOR
+  // ══════════════════════════════════════════
+  async function generateNextStudentId() {
+    const now = new Date();
+    const prefix = `STU${String(now.getMonth()+1).padStart(2,'0')}${String(now.getFullYear()%100).padStart(2,'0')}`;
+    const { data } = await supabase.from('students').select('student_id').like('student_id',`${prefix}%`).order('student_id',{ascending:false}).limit(1);
+    let seq = 1;
+    if(data?.length) {
+      const last = data[0].student_id.slice(-3);
+      const n = parseInt(last,10);
+      if(!isNaN(n)) seq = n+1;
+    }
+    return `${prefix}${String(seq).padStart(3,'0')}`;
+  }
+
+  // ══════════════════════════════════════════
+  // DASHBOARD / CHARTS
+  // ══════════════════════════════════════════
+  const COLORS = ['#4f46e5','#8b5cf6','#ec4899','#f43f5e','#f97316','#fbbf24','#22c55e','#06b6d4','#3b82f6','#a78bfa'];
+
+  function destroyChart(id) { if(chartInstances[id]){ chartInstances[id].destroy(); delete chartInstances[id]; } }
+
+  function makeBar(id, labels, values, label='') {
+    destroyChart(id);
+    const ctx = document.getElementById(id)?.getContext('2d');
+    if(!ctx) return;
+    chartInstances[id] = new Chart(ctx, { type:'bar', data:{ labels, datasets:[{ label, data:values, backgroundColor:COLORS, borderRadius:7, borderSkipped:false }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false} }, scales:{ y:{beginAtZero:true, grid:{color:'#e2e8f0'}}, x:{grid:{display:false}} } } });
+  }
+  function makePie(id, labels, values) {
+    destroyChart(id);
+    const ctx = document.getElementById(id)?.getContext('2d');
+    if(!ctx) return;
+    chartInstances[id] = new Chart(ctx, { type:'doughnut', data:{ labels, datasets:[{ data:values, backgroundColor:COLORS, hoverOffset:5 }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{position:'right'} }, cutout:'60%' } });
+  }
+  function makeLine(id, labels, values, label='') {
+    destroyChart(id);
+    const ctx = document.getElementById(id)?.getContext('2d');
+    if(!ctx) return;
+    chartInstances[id] = new Chart(ctx, { type:'line', data:{ labels, datasets:[{ label, data:values, borderColor:'#4f46e5', backgroundColor:'rgba(79,70,229,0.1)', fill:true, tension:0.4, pointRadius:4, pointBackgroundColor:'#4f46e5' }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false} }, scales:{ y:{beginAtZero:true, grid:{color:'#e2e8f0'}}, x:{grid:{display:false}} } } });
+  }
+
+  async function renderDashboard() {
+    const statsGrid  = document.getElementById('statsGrid');
+    const chartsGrid = document.getElementById('chartsGrid');
+    statsGrid.innerHTML  = '<p class="col-span-full text-gray-400 text-sm">Loading…</p>';
+    chartsGrid.innerHTML = '';
+
+    const tables = ['students','batches','admins','attendance_logs','payments','certificates','task_submissions','roles'];
+    const results = await Promise.all(tables.map(t=>supabase.from(t).select('*')));
+    const [stuData,batData,admData,attData,payData,cerData,subData] = results.map((r,i)=>{ allData[tables[i]]=r.data||[]; return r.data||[]; });
+
+    const today = new Date().toDateString();
+    const presentToday = attData.filter(l=>new Date(l.date).toDateString()===today&&l.present).length;
+    const totalPay = payData.reduce((s,p)=>s+(p.amount||0),0);
+
+    const stats = [
+      { icon:'fa-user-graduate', label:'Total Students', value:stuData.length, color:'#4f46e5', bg:'rgba(79,70,229,0.1)' },
+      { icon:'fa-layer-group',   label:'Batches',        value:batData.length, color:'#8b5cf6', bg:'rgba(139,92,246,0.1)' },
+      { icon:'fa-user-shield',   label:'Admins',         value:admData.length, color:'#0284c7', bg:'rgba(2,132,199,0.1)' },
+      { icon:'fa-check-circle',  label:'Present Today',  value:presentToday,   color:'#16a34a', bg:'rgba(22,163,74,0.1)' },
+      { icon:'fa-money-bill',    label:'Total Payments', value:'₹'+totalPay.toLocaleString(), color:'#d97706', bg:'rgba(217,119,6,0.1)' },
+      { icon:'fa-certificate',   label:'Certificates',   value:cerData.filter(c=>c.status==='issued').length, color:'#ec4899', bg:'rgba(236,72,153,0.1)' },
+    ];
+
+    statsGrid.innerHTML = stats.map(s=>`
+      <div class="card stat-card card-hover">
+        <div class="stat-icon" style="background:${s.bg};color:${s.color};"><i class="fas ${s.icon}"></i></div>
+        <div><div class="stat-label">${s.label}</div><div class="stat-value">${s.value}</div></div>
+      </div>`).join('');
+
+    const charts = [
+      { id:'chart-stuBatch', title:'Students by Batch', type:'bar',
+        prep: ()=>{ const m=d3.rollup(stuData,v=>v.length,d=>{ const b=batData.find(b=>b.batch_id===d.batch_id); return b?b.batch_name:'Unassigned'; }); return [[...m.keys()],[...m.values()]]; } },
+      { id:'chart-payStatus', title:'Payment Status', type:'pie',
+        prep: ()=>{ const m=d3.rollup(payData,v=>v.length,d=>d.payment_status); return [[...m.keys()],[...m.values()]]; } },
+      { id:'chart-attTrend', title:'Attendance Trend', type:'line',
+        prep: ()=>{ const m=d3.rollup(attData,v=>v.filter(d=>d.present).length,d=>new Date(d.date).toISOString().slice(0,10)); const keys=[...m.keys()].sort(); return [keys,keys.map(k=>m.get(k))]; } },
+      { id:'chart-userState', title:'Student User States', type:'pie',
+        prep: ()=>{ const m=d3.rollup(stuData,v=>v.length,d=>d.user_state); return [[...m.keys()].map(fmt),[...m.values()]]; } },
+      { id:'chart-certStatus', title:'Certificate Status', type:'pie',
+        prep: ()=>{ const m=d3.rollup(cerData,v=>v.length,d=>d.status); return [[...m.keys()],[...m.values()]]; } },
+      { id:'chart-tasks', title:'Task Submissions', type:'bar',
+        prep: ()=>{ const m=d3.rollup(subData,v=>v.length,d=>d.task_name); return [[...m.keys()],[...m.values()]]; } },
+    ];
+
+    chartsGrid.innerHTML = charts.map(c=>`
+      <div class="card p-5">
+        <div style="font-size:0.9rem;font-weight:700;color:#475569;margin-bottom:12px;">${c.title}</div>
+        <div class="chart-box"><canvas id="${c.id}"></canvas></div>
+      </div>`).join('');
+
+    charts.forEach(c => {
+      const [labels, values] = c.prep();
+      if(!labels.length) return;
+      if(c.type==='bar')  makeBar(c.id, labels, values);
+      if(c.type==='pie')  makePie(c.id, labels, values);
+      if(c.type==='line') makeLine(c.id, labels, values, 'Present');
+    });
+  }
+
+  document.getElementById('refreshVizBtn')?.addEventListener('click', renderDashboard);
+  document.getElementById('refreshBtn')?.addEventListener('click', ()=>{
+    const panel = document.querySelector('.panel.active')?.id;
+    const table = panelToTable[panel];
+    if(table) loadTable(table);
+    else if(panel==='dashboardPanel') renderDashboard();
+    showToast('Refreshed','info');
+  });
+
+  // ══════════════════════════════════════════
+  // TOOLS: CLASS LINKS
+  // ══════════════════════════════════════════
+  async function initClassLinksPanel() {
+    await populateBatchDropdown(document.getElementById('classLinkBatch'));
+    document.getElementById('classLinkBatch').addEventListener('change', async () => {
+      const bId = document.getElementById('classLinkBatch').value;
+      document.getElementById('classLinkUrl').value = '';
+      if(!bId) return;
+      const { data } = await supabase.from('students').select('class_link').eq('batch_id',bId).not('class_link','is',null).limit(1);
+      if(data?.length) document.getElementById('classLinkUrl').value = data[0].class_link||'';
+    });
+    document.getElementById('classLinkSave').addEventListener('click', async () => {
+      const bId = document.getElementById('classLinkBatch').value;
+      const url = document.getElementById('classLinkUrl').value.trim();
+      if(!bId||!url) { showToast('Please select batch and enter a URL','error'); return; }
+      loading.show();
+      const { error } = await supabase.from('students').update({ class_link:url }).eq('batch_id',bId);
+      loading.hide();
+      if(error) { showToast('Failed: '+error.message,'error'); return; }
+      showToast('Class link saved for all students in batch','success');
+    });
+    document.getElementById('classLinkClear').addEventListener('click', ()=>{
+      document.getElementById('classLinkBatch').value='';
+      document.getElementById('classLinkUrl').value='';
+    });
+  }
+
+  // ══════════════════════════════════════════
+  // TOOLS: PAYMENT MANAGEMENT
+  // ══════════════════════════════════════════
+  async function initPaymentMgmt() {
+    await populateBatchDropdown(document.getElementById('pmtBatch'));
+    document.getElementById('pmtSave').addEventListener('click', async () => {
+      const bId = document.getElementById('pmtBatch').value;
+      const st  = document.getElementById('pmtStatus').value;
+      if(!bId||!st) { showToast('Select batch and status','error'); return; }
+      const ok = await showAlert('Confirm Bulk Update', `Set payment_status to "${fmt(st)}" for ALL students in this batch?`,{isConfirm:true});
+      if(!ok) return;
+      loading.show();
+      const { error } = await supabase.from('students').update({ payment_status:st }).eq('batch_id',bId);
+      loading.hide();
+      if(error) { showToast('Failed: '+error.message,'error'); return; }
+      showToast(`Payment status updated to "${fmt(st)}" for batch`,'success');
+    });
+    document.getElementById('pmtClear').addEventListener('click',()=>{
+      document.getElementById('pmtBatch').value='';
+      document.getElementById('pmtStatus').value='';
+    });
+  }
+
+  // ══════════════════════════════════════════
+  // ATTENDANCE: COPY IDs
+  // ══════════════════════════════════════════
+  document.getElementById('copyAttendanceBtn')?.addEventListener('click', ()=>{
+    const data = filteredData['attendance_logs']||[];
+    const ids  = [...new Set(data.map(r=>r.student_id).filter(Boolean))];
+    if(!ids.length) { showToast('No attendance records to copy','error'); return; }
+    copyToClipboard(ids.join('\n'));
+    showToast(`${ids.length} student IDs copied`,'success');
+  });
+
+  // ══════════════════════════════════════════
+  // TASK: NON-SUBMITTERS
+  // ══════════════════════════════════════════
+  document.getElementById('nonSubmittersBtn')?.addEventListener('click', async ()=>{
+    const dateEl = document.getElementById('filter-task_submissions-date');
+    const date   = dateEl?.value || new Date().toISOString().slice(0,10);
+    loading.show();
+    const [allStu, subs] = await Promise.all([
+      supabase.from('students').select('student_id'),
+      supabase.from('task_submissions').select('student_id,submitted_at').gte('submitted_at',`${date}T00:00:00.000Z`).lte('submitted_at',`${date}T23:59:59.999Z`)
+    ]);
+    loading.hide();
+    const submitted = new Set((subs.data||[]).map(r=>r.student_id));
+    const nonSub = (allStu.data||[]).map(s=>s.student_id).filter(id=>!submitted.has(id));
+    if(!nonSub.length) { showToast('All students submitted tasks on '+date,'success'); return; }
+    copyToClipboard(nonSub.join('\n'));
+    showToast(`${nonSub.length} non-submitter IDs copied for ${date}`,'info');
+  });
+
+  // ══════════════════════════════════════════
+  // FIREBASE — NOTIFICATIONS
+  // ══════════════════════════════════════════
+  let fbCollections = { notifications:[], carousel_links:[], internships:[], courses:[], feedback:[], problemReports:[] };
+  let fbEditing = { type:null, id:null };
+  let fbUser = null;
+
+  async function loadFirebase() {
+    if(!fbUser) return;
+    loading.show();
+    try {
+      const [n,c,i,co,f,r] = await Promise.all([
+        db.collection('notifications').orderBy('timestamp','desc').get(),
+        db.collection('carousel_links').orderBy('order').get(),
+        db.collection('internships').orderBy('timestamp','desc').get(),
+        db.collection('courses').orderBy('timestamp','desc').get(),
+        db.collection('feedback').get(),
+        db.collection('problemReports').get(),
+      ]);
+      fbCollections.notifications  = n.docs.map(d=>({id:d.id,...d.data()}));
+      fbCollections.carousel_links = c.docs.map(d=>({id:d.id,...d.data()}));
+      fbCollections.internships    = i.docs.map(d=>({id:d.id,...d.data()}));
+      fbCollections.courses        = co.docs.map(d=>({id:d.id,...d.data()}));
+      fbCollections.feedback       = f.docs.map(d=>({id:d.id,...d.data()}));
+      fbCollections.problemReports = r.docs.map(d=>({id:d.id,...d.data()}));
+      renderFirebaseLists();
+      // Announcements
+      const ann = await db.collection('announcements').doc('latest').get();
+      if(ann.exists) {
+        const d=ann.data();
+        document.getElementById('annTitle').value=d.title||'';
+        document.getElementById('annDesc').value=d.description||'';
+        document.getElementById('annImg').value=d.imageUrl||'';
+        renderCurrentAnn(d);
+      }
+    } catch(e) { showToast('Firebase load error: '+e.message,'error'); }
+    loading.hide();
+  }
+
+  function renderCurrentAnn(d) {
+    document.getElementById('currentAnn').innerHTML = d ? `
+      <div class="card p-4 mt-4">
+        <div style="font-weight:700;font-size:1.05rem;">${d.title||''}</div>
+        <p style="color:#64748b;margin-top:6px;font-size:0.875rem;">${d.description||''}</p>
+        ${d.imageUrl?`<img src="${d.imageUrl}" style="margin-top:10px;border-radius:10px;max-height:160px;object-fit:cover;" onerror="this.style.display='none'"/>`:''}
+      </div>` : '';
+  }
+
+  function fbListItem(item, type, titleFn, subtitleFn, badgeFn) {
+    return `<div class="list-item">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">
+        <div>
+          <div style="font-weight:700;color:var(--primary);font-size:0.95rem;">${titleFn(item)}</div>
+          <div style="font-size:0.82rem;color:#64748b;margin-top:3px;">${subtitleFn(item)}</div>
+          ${badgeFn(item)?`<span class="badge badge-gray" style="margin-top:6px;">${badgeFn(item)}</span>`:''}
+        </div>
+        <div style="display:flex;gap:6px;">
+          <button class="icon-btn edit" onclick="fbEdit('${type}','${item.id}')"><i class="fas fa-edit"></i></button>
+          <button class="icon-btn danger" onclick="fbDelete('${type}','${item.id}')"><i class="fas fa-trash-alt"></i></button>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  function renderFirebaseLists() {
+    document.getElementById('notifList').innerHTML =
+      fbCollections.notifications.length ? fbCollections.notifications.map(i=>fbListItem(i,'notifications',i=>i.title||'Untitled',i=>i.message||'',()=>'')).join('') : emptyState('No notifications yet');
+    document.getElementById('carList').innerHTML =
+      fbCollections.carousel_links.length ? fbCollections.carousel_links.map(i=>fbListItem(i,'carousel_links',i=>`Order ${i.order}: ${i.targetUrl?.substring(0,50)||''}`,i=>i.imageUrl||'',()=>'')).join('') : emptyState('No carousel items');
+    document.getElementById('intList').innerHTML =
+      fbCollections.internships.length ? fbCollections.internships.map(i=>fbListItem(i,'internships',i=>i.Name||'Untitled',i=>`${i.Work||''} | ${i.Stipend||''}`,i=>i.Dates||'')).join('') : emptyState('No internships');
+    document.getElementById('courseList').innerHTML =
+      fbCollections.courses.length ? fbCollections.courses.map(i=>fbListItem(i,'courses',i=>i.title||'Untitled',i=>`${i.instructor||''} • ${i.duration||''}`,i=>i.category||'')).join('') : emptyState('No courses');
+    document.getElementById('feedbackList').innerHTML =
+      fbCollections.feedback.length ? fbCollections.feedback.map(i=>`<div class="list-item"><div style="font-weight:700;">${i.name||'Anonymous'}</div><div style="color:#f59e0b;">${'★'.repeat(Math.min(5,Math.max(0,i.rating||0)))}</div><div style="font-size:0.82rem;color:#64748b;margin-top:4px;">${i.comment||''}</div></div>`).join('') : emptyState('No feedback yet');
+    document.getElementById('reportsList').innerHTML =
+      fbCollections.problemReports.length ? fbCollections.problemReports.map(i=>`<div class="list-item"><div style="display:flex;align-items:center;gap:8px;"><span class="badge badge-danger">!</span><span style="font-weight:700;">${i.name||'Unknown'}</span></div><div style="font-size:0.82rem;color:#64748b;margin-top:4px;">${i.issueType||''}: ${(i.description||'').substring(0,100)}</div></div>`).join('') : emptyState('No reports');
+  }
+
+  function emptyState(msg) {
+    return `<div style="text-align:center;padding:40px;color:#94a3b8;"><i class="fas fa-inbox" style="font-size:2rem;margin-bottom:10px;display:block;"></i>${msg}</div>`;
+  }
+
+  // Notifications
+  let notifEditId = null;
+  document.getElementById('notifSaveBtn').addEventListener('click', async ()=>{
+    if(!fbUser) { showToast('Please login via Settings first','error'); return; }
+    const t=document.getElementById('notifTitle').value.trim(), m=document.getElementById('notifMsg').value.trim();
+    if(!t||!m) { showToast('Fill in title and message','error'); return; }
+    loading.show();
+    if(notifEditId) { await db.collection('notifications').doc(notifEditId).update({title:t,message:m,timestamp:firebase.firestore.FieldValue.serverTimestamp()}); notifEditId=null; }
+    else await db.collection('notifications').add({title:t,message:m,timestamp:firebase.firestore.FieldValue.serverTimestamp()});
+    document.getElementById('notifTitle').value=''; document.getElementById('notifMsg').value='';
+    document.getElementById('notifCancelBtn').style.display='none';
+    await loadFirebase(); loading.hide(); showToast('Notification saved','success');
+  });
+  document.getElementById('notifCancelBtn').addEventListener('click',()=>{
+    notifEditId=null; document.getElementById('notifTitle').value=''; document.getElementById('notifMsg').value='';
+    document.getElementById('notifCancelBtn').style.display='none';
+  });
+
+  // Carousel
+  let carEditId = null;
+  document.getElementById('carSaveBtn').addEventListener('click', async ()=>{
+    if(!fbUser) { showToast('Please login via Settings first','error'); return; }
+    const img=document.getElementById('carImg').value.trim(), url=document.getElementById('carUrl').value.trim(), order=parseInt(document.getElementById('carOrder').value)||1;
+    if(!img||!url) { showToast('Fill all fields','error'); return; }
+    loading.show();
+    if(carEditId) { await db.collection('carousel_links').doc(carEditId).update({imageUrl:img,targetUrl:url,order}); carEditId=null; }
+    else await db.collection('carousel_links').add({imageUrl:img,targetUrl:url,order});
+    document.getElementById('carImg').value=''; document.getElementById('carUrl').value=''; document.getElementById('carOrder').value='1';
+    document.getElementById('carCancelBtn').style.display='none';
+    await loadFirebase(); loading.hide(); showToast('Carousel saved','success');
+  });
+  document.getElementById('carCancelBtn').addEventListener('click',()=>{
+    carEditId=null; document.getElementById('carImg').value=''; document.getElementById('carUrl').value=''; document.getElementById('carOrder').value='1';
+    document.getElementById('carCancelBtn').style.display='none';
+  });
+
+  // Announcement
+  document.getElementById('annSaveBtn').addEventListener('click', async ()=>{
+    if(!fbUser) { showToast('Please login via Settings first','error'); return; }
+    const d={ title:document.getElementById('annTitle').value, description:document.getElementById('annDesc').value, imageUrl:document.getElementById('annImg').value, timestamp:firebase.firestore.FieldValue.serverTimestamp() };
+    loading.show();
+    await db.collection('announcements').doc('latest').set(d,{merge:true});
+    renderCurrentAnn(d); loading.hide(); showToast('Announcement updated','success');
+  });
+
+  // Internships
+  let intEditId = null;
+  document.getElementById('intSaveBtn').addEventListener('click', async ()=>{
+    if(!fbUser) { showToast('Please login via Settings first','error'); return; }
+    const data={ Name:document.getElementById('intName').value, Work:document.getElementById('intWork').value, Eligibility:document.getElementById('intElig').value, Stipend:document.getElementById('intStip').value, Dates:document.getElementById('intDates').value, Link:document.getElementById('intLink').value, timestamp:firebase.firestore.FieldValue.serverTimestamp() };
+    loading.show();
+    if(intEditId) { await db.collection('internships').doc(intEditId).update(data); intEditId=null; }
+    else await db.collection('internships').add(data);
+    ['intName','intWork','intElig','intStip','intDates','intLink'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('intCancelBtn').style.display='none';
+    await loadFirebase(); loading.hide(); showToast('Internship saved','success');
+  });
+  document.getElementById('intCancelBtn').addEventListener('click',()=>{
+    intEditId=null; ['intName','intWork','intElig','intStip','intDates','intLink'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('intCancelBtn').style.display='none';
+  });
+
+  // Courses
+  let courseEditId = null;
+  document.getElementById('courseSaveBtn').addEventListener('click', async ()=>{
+    if(!fbUser) { showToast('Please login via Settings first','error'); return; }
+    const data={ title:document.getElementById('cTitle').value, description:document.getElementById('cDesc').value, duration:document.getElementById('cDur').value, instructor:document.getElementById('cInst').value, category:document.getElementById('cCat').value, image:document.getElementById('cImg').value, pdfUrl:document.getElementById('cPdf').value, timestamp:firebase.firestore.FieldValue.serverTimestamp() };
+    loading.show();
+    if(courseEditId) { await db.collection('courses').doc(courseEditId).update(data); courseEditId=null; }
+    else await db.collection('courses').add(data);
+    ['cTitle','cDesc','cDur','cInst','cCat','cImg','cPdf'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('courseCancelBtn').style.display='none';
+    await loadFirebase(); loading.hide(); showToast('Course saved','success');
+  });
+  document.getElementById('courseCancelBtn').addEventListener('click',()=>{
+    courseEditId=null; ['cTitle','cDesc','cDur','cInst','cCat','cImg','cPdf'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('courseCancelBtn').style.display='none';
+  });
+
+  // Global Firebase edit/delete
+  window.fbEdit = (type, id) => {
+    const item = fbCollections[type]?.find(i=>i.id===id);
+    if(!item) return;
+    if(type==='notifications') {
+      document.getElementById('notifTitle').value=item.title||'';
+      document.getElementById('notifMsg').value=item.message||'';
+      notifEditId=id; document.getElementById('notifCancelBtn').style.display='inline-flex';
+    } else if(type==='carousel_links') {
+      document.getElementById('carImg').value=item.imageUrl||'';
+      document.getElementById('carUrl').value=item.targetUrl||'';
+      document.getElementById('carOrder').value=item.order||1;
+      carEditId=id; document.getElementById('carCancelBtn').style.display='inline-flex';
+    } else if(type==='internships') {
+      ['Name','Work','Eligibility','Stipend','Dates'].forEach(k=>document.getElementById('int'+k.charAt(0).toUpperCase()+k.slice(1).toLowerCase())||document.getElementById('int'+k.replace(/([A-Z])/g,'')?.toLowerCase()));
+      document.getElementById('intName').value=item.Name||'';
+      document.getElementById('intWork').value=item.Work||'';
+      document.getElementById('intElig').value=item.Eligibility||'';
+      document.getElementById('intStip').value=item.Stipend||'';
+      document.getElementById('intDates').value=item.Dates||'';
+      document.getElementById('intLink').value=item.Link||'';
+      intEditId=id; document.getElementById('intCancelBtn').style.display='inline-flex';
+    } else if(type==='courses') {
+      document.getElementById('cTitle').value=item.title||'';
+      document.getElementById('cDesc').value=item.description||'';
+      document.getElementById('cDur').value=item.duration||'';
+      document.getElementById('cInst').value=item.instructor||'';
+      document.getElementById('cCat').value=item.category||'';
+      document.getElementById('cImg').value=item.image||'';
+      document.getElementById('cPdf').value=item.pdfUrl||'';
+      courseEditId=id; document.getElementById('courseCancelBtn').style.display='inline-flex';
+    }
+    // Scroll form into view
+    switchPanel(type==='notifications'?'notificationsPanel':type==='carousel_links'?'carouselPanel':type==='internships'?'internshipsPanel':'coursesPanel');
+  };
+
+  window.fbDelete = async (type, id) => {
+    const ok = await showAlert('Delete Item', 'Delete this item? This cannot be undone.', {isConfirm:true});
+    if(!ok) return;
+    loading.show();
+    await db.collection(type).doc(id).delete();
+    await loadFirebase(); loading.hide(); showToast('Deleted','success');
+  };
+
+  // ══════════════════════════════════════════
+  // FIREBASE AUTH
+  // ══════════════════════════════════════════
+  auth.onAuthStateChanged(async user => {
+    fbUser = user;
+    const userPill = document.getElementById('userPill');
+    const userAvatar = document.getElementById('userAvatar');
+    const userLabel = document.getElementById('userLabel');
+
+    if(user) {
+      const initial = (user.email||'A')[0].toUpperCase();
+      userAvatar.textContent = initial;
+      userLabel.textContent  = user.email.split('@')[0];
+      document.getElementById('authContent').innerHTML = `
+        <div style="text-align:center;padding:16px;background:rgba(79,70,229,0.08);border-radius:12px;">
+          <i class="fas fa-check-circle" style="font-size:2rem;color:var(--success);"></i>
+          <div style="font-weight:700;margin-top:10px;">Welcome, ${user.email}</div>
+          <button class="btn btn-danger btn-sm" style="margin-top:14px;" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Logout</button>
+        </div>`;
+      document.getElementById('logoutBtn')?.addEventListener('click',()=>auth.signOut());
+      await loadFirebase();
+    } else {
+      userAvatar.textContent='A'; userLabel.textContent='Admin';
+      document.getElementById('authContent').innerHTML = `
+        <div class="form-group"><label class="form-label">Email</label><input type="email" id="adminEmail" class="form-control" placeholder="admin@ir-skillup.com"/></div>
+        <div class="form-group"><label class="form-label">Password</label><input type="password" id="adminPassword" class="form-control" placeholder="••••••••"/></div>
+        <button id="loginBtn2" class="btn btn-primary" style="width:100%;justify-content:center;"><i class="fas fa-arrow-right-to-bracket"></i> Login</button>`;
+      document.getElementById('loginBtn2')?.addEventListener('click', async ()=>{
+        const e=document.getElementById('adminEmail').value, p=document.getElementById('adminPassword').value;
+        if(!e||!p) { showToast('Enter email and password','error'); return; }
+        loading.show();
+        try { await auth.signInWithEmailAndPassword(e,p); showToast('Logged in successfully','success'); }
+        catch(err) { showToast('Login failed: '+err.message,'error'); }
+        loading.hide();
+      });
+    }
+  });
+
+  // ══════════════════════════════════════════
+  // PANEL ACTIVATION
+  // ══════════════════════════════════════════
+  let classLinksInited = false;
+  let pmtInited = false;
+
+  async function onPanelActivated(panelId) {
+    const table = panelToTable[panelId];
+    if(table) {
+      buildTableHeader(table);
+      await loadTable(table);
+      // Preload batches/roles for FK resolution in all tables
+      if(!allData.batches) await fetchAll('batches');
+      if(!allData.roles)   await fetchAll('roles');
+    }
+    if(panelId==='dashboardPanel') await renderDashboard();
+    if(['notificationsPanel','carouselPanel','announcementsPanel','internshipsPanel','coursesPanel','feedbackPanel','reportsPanel'].includes(panelId)) {
+      if(fbUser) await loadFirebase();
+    }
+    if(panelId==='classLinksPanel' && !classLinksInited) { classLinksInited=true; await initClassLinksPanel(); }
+    if(panelId==='paymentMgmtPanel' && !pmtInited) { pmtInited=true; await initPaymentMgmt(); }
+  }
+
+  // ══════════════════════════════════════════
+  // BOOT
+  // ══════════════════════════════════════════
+  (async () => {
+    // Preload critical reference data
+    await Promise.all([fetchAll('batches'), fetchAll('roles')]);
+    // Start on dashboard
+    await renderDashboard();
+  })();
+</script>
+</body>
+</html>
